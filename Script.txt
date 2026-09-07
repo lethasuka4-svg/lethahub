@@ -18,10 +18,6 @@ local camlockTarget = nil
 local predictionAmount = 0.135
 local isMenuOpen = true
 
--- FOV & KAMERA AYARLARI
-local currentFov = 70
-local isFovActive = false
-
 -- SONSUZ KAMERA UZAKLAŞTIRMA (ZOOM FIX)
 LocalPlayer.CameraMaxZoomDistance = 100000
 LocalPlayer.CameraMinZoomDistance = 0.5
@@ -121,16 +117,16 @@ LockStroke.Thickness = 1.6
 
 local isLockDragged = makeDraggable(LockUI)
 
--- ORIJINAL ROBLOX MOBİL JUMP BUTONU TASARIMLI INF JUMP
+-- MOBİL JUMP BUTONU BOYUTUNDA INF JUMP (110x110)
 local InfJumpUI = Instance.new("TextButton")
 InfJumpUI.Name = "InfJumpUI"
-InfJumpUI.Size = UDim2.new(0, 65, 0, 65)
-InfJumpUI.Position = UDim2.new(0.83, 0, 0.65, 0)
+InfJumpUI.Size = UDim2.new(0, 110, 0, 110)
+InfJumpUI.Position = UDim2.new(0.78, 0, 0.48, 0)
 InfJumpUI.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 InfJumpUI.BackgroundTransparency = 0.45
 InfJumpUI.TextColor3 = Color3.fromRGB(255, 255, 255)
 InfJumpUI.Text = "▲"
-InfJumpUI.TextSize = 26
+InfJumpUI.TextSize = 46
 InfJumpUI.Font = Enum.Font.GothamBold
 InfJumpUI.Visible = false
 InfJumpUI.Parent = ScreenGui
@@ -139,15 +135,15 @@ Instance.new("UICorner", InfJumpUI).CornerRadius = UDim.new(1, 0)
 local InfJumpStroke = Instance.new("UIStroke", InfJumpUI)
 InfJumpStroke.Color = Color3.fromRGB(255, 255, 255)
 InfJumpStroke.Transparency = 0.3
-InfJumpStroke.Thickness = 2.5
+InfJumpStroke.Thickness = 3.5
 
 local isInfJumpDragged = makeDraggable(InfJumpUI)
 
 -- VIP ANA MENÜ
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 430)
-MainFrame.Position = UDim2.new(0.5, -120, 0.12, 0)
+MainFrame.Size = UDim2.new(0, 240, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -120, 0.15, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
 MainFrame.BackgroundTransparency = 0.08
 MainFrame.Active = true
@@ -181,7 +177,7 @@ Title.Parent = MainFrame
 local function createVipButton(name, text, pos, bgCol)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Size = UDim2.new(0.86, 0, 0, 27)
+    btn.Size = UDim2.new(0.86, 0, 0, 28)
     btn.Position = pos
     btn.BackgroundColor3 = bgCol
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -200,8 +196,8 @@ end
 
 -- SPEED KONTROLLERİ
 local SpeedBox = Instance.new("TextBox")
-SpeedBox.Size = UDim2.new(0.86, 0, 0, 24)
-SpeedBox.Position = UDim2.new(0.07, 0, 0.09, 0)
+SpeedBox.Size = UDim2.new(0.86, 0, 0, 26)
+SpeedBox.Position = UDim2.new(0.07, 0, 0.11, 0)
 SpeedBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
 SpeedBox.TextColor3 = Color3.fromRGB(0, 240, 255)
 SpeedBox.PlaceholderText = "Hız Değeri..."
@@ -212,8 +208,8 @@ SpeedBox.Parent = MainFrame
 Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 6)
 
 local ConfirmBtn = Instance.new("TextButton")
-ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 24)
-ConfirmBtn.Position = UDim2.new(0.07, 0, 0.15, 0)
+ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 26)
+ConfirmBtn.Position = UDim2.new(0.07, 0, 0.19, 0)
 ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
 ConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ConfirmBtn.Text = "Hızı Ayarla"
@@ -223,8 +219,8 @@ ConfirmBtn.Parent = MainFrame
 Instance.new("UICorner", ConfirmBtn).CornerRadius = UDim.new(0, 6)
 
 local ResetSpeedBtn = Instance.new("TextButton")
-ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 24)
-ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.15, 0)
+ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 26)
+ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.19, 0)
 ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 ResetSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetSpeedBtn.Text = "Hızı Sıfırla"
@@ -233,41 +229,17 @@ ResetSpeedBtn.Font = Enum.Font.GothamBold
 ResetSpeedBtn.Parent = MainFrame
 Instance.new("UICorner", ResetSpeedBtn).CornerRadius = UDim.new(0, 6)
 
--- FOV KONTROLLERİ (0 - 120)
-local FovBox = Instance.new("TextBox")
-FovBox.Size = UDim2.new(0.41, 0, 0, 24)
-FovBox.Position = UDim2.new(0.07, 0, 0.22, 0)
-FovBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
-FovBox.TextColor3 = Color3.fromRGB(255, 180, 0)
-FovBox.PlaceholderText = "FOV (0-120)"
-FovBox.Text = ""
-FovBox.TextSize = 10
-FovBox.Font = Enum.Font.GothamMedium
-FovBox.Parent = MainFrame
-Instance.new("UICorner", FovBox).CornerRadius = UDim.new(0, 6)
-
-local FovConfirmBtn = Instance.new("TextButton")
-FovConfirmBtn.Size = UDim2.new(0.42, 0, 0, 24)
-FovConfirmBtn.Position = UDim2.new(0.51, 0, 0.22, 0)
-FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(130, 80, 200)
-FovConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FovConfirmBtn.Text = "FOV Ayarla"
-FovConfirmBtn.TextSize = 10
-FovConfirmBtn.Font = Enum.Font.GothamBold
-FovConfirmBtn.Parent = MainFrame
-Instance.new("UICorner", FovConfirmBtn).CornerRadius = UDim.new(0, 6)
-
 -- DİĞER BUTONLAR
-local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.29, 0), Color3.fromRGB(150, 30, 45))
-local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.36, 0), Color3.fromRGB(150, 30, 45))
-local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.43, 0), Color3.fromRGB(150, 30, 45))
-local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.50, 0), Color3.fromRGB(150, 30, 45))
-local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.57, 0), Color3.fromRGB(150, 30, 45))
+local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.28, 0), Color3.fromRGB(150, 30, 45))
+local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.37, 0), Color3.fromRGB(150, 30, 45))
+local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.46, 0), Color3.fromRGB(150, 30, 45))
+local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.55, 0), Color3.fromRGB(150, 30, 45))
+local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.64, 0), Color3.fromRGB(150, 30, 45))
 
 -- CONFIG (KAYDET & YÜKLE) BUTONLARI
 local SaveConfigBtn = Instance.new("TextButton")
 SaveConfigBtn.Size = UDim2.new(0.41, 0, 0, 28)
-SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.88, 0)
+SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.86, 0)
 SaveConfigBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 90)
 SaveConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveConfigBtn.Text = "Kaydet 💾"
@@ -278,7 +250,7 @@ Instance.new("UICorner", SaveConfigBtn).CornerRadius = UDim.new(0, 6)
 
 local LoadConfigBtn = Instance.new("TextButton")
 LoadConfigBtn.Size = UDim2.new(0.42, 0, 0, 28)
-LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.88, 0)
+LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.86, 0)
 LoadConfigBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
 LoadConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoadConfigBtn.Text = "Yükle 📂"
@@ -299,9 +271,7 @@ local function saveCurrentConfig()
         safeHitboxSize = safeHitboxSize,
         espActive = espActive,
         infJumpSystemEnabled = infJumpSystemEnabled,
-        camlockSystemEnabled = camlockSystemEnabled,
-        currentFov = currentFov,
-        isFovActive = isFovActive
+        camlockSystemEnabled = camlockSystemEnabled
     }
     
     if writefile then
@@ -312,7 +282,6 @@ local function saveCurrentConfig()
 end
 
 local function applyLoadedUIState()
-    -- Hız Güncelleme
     if isSpeedActive then
         ConfirmBtn.Text = "Aktif: " .. tostring(targetSpeed)
         ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
@@ -321,18 +290,10 @@ local function applyLoadedUIState()
         ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
     end
 
-    -- FOV Güncelleme
-    if isFovActive then
-        FovConfirmBtn.Text = "FOV: " .. tostring(currentFov)
-        FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    end
-
-    -- Camlock Güncelleme
     LockUI.Visible = camlockSystemEnabled
     CamlockMenuBtn.Text = camlockSystemEnabled and "Camlock Butonu: AÇIK" or "Camlock Butonu: KAPALI"
     CamlockMenuBtn.BackgroundColor3 = camlockSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 
-    -- Skill Walk Güncelleme
     if skillWalkMode == "AUTO" then
         BypassBtn.Text = "Skill Walk: AUTO"
         BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
@@ -344,12 +305,10 @@ local function applyLoadedUIState()
         BypassBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
     end
 
-    -- Inf Jump Güncelleme
     InfJumpUI.Visible = infJumpSystemEnabled
     InfJumpMenuBtn.Text = infJumpSystemEnabled and "Inf Jump (Spam): ON" or "Inf Jump (Spam): OFF"
     InfJumpMenuBtn.BackgroundColor3 = infJumpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 
-    -- Hitbox & ESP
     HitboxBtn.Text = hitboxActive and "Safe Hitbox (6.5): ON" or "Safe Hitbox (6.5): OFF"
     HitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 
@@ -360,7 +319,7 @@ end
 local function loadSavedConfig()
     if readfile and isfile and isfile(configFileName) then
         local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(configFileName))
+            return HttpService:JSONEncode(readfile(configFileName))
         end)
         
         if success and data then
@@ -372,8 +331,6 @@ local function loadSavedConfig()
             espActive = data.espActive or false
             infJumpSystemEnabled = data.infJumpSystemEnabled or false
             camlockSystemEnabled = data.camlockSystemEnabled or false
-            currentFov = data.currentFov or 70
-            isFovActive = data.isFovActive or false
 
             applyLoadedUIState()
             LoadConfigBtn.Text = "Yüklendi! ✓"
@@ -384,17 +341,6 @@ end
 
 SaveConfigBtn.MouseButton1Click:Connect(saveCurrentConfig)
 LoadConfigBtn.MouseButton1Click:Connect(loadSavedConfig)
-
--- FOV AYARLAMA
-FovConfirmBtn.MouseButton1Click:Connect(function()
-    local num = tonumber(FovBox.Text)
-    if num then
-        currentFov = math.clamp(num, 0, 120)
-        isFovActive = true
-        FovConfirmBtn.Text = "FOV: " .. tostring(currentFov)
-        FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    end
-end)
 
 -- ZIPLAMA MANTIĞI
 local function executeSpamJump()
@@ -414,7 +360,7 @@ InfJumpUI.InputBegan:Connect(function(input)
     end
 end)
 
--- EN YAKIN HEDEFİ BULMA (3D MESAFE)
+-- EN YAKIN HEDEFİ BULMA (ANLIK OTO ODAKLAMA)
 local function getClosestTarget()
     local nearest = nil
     local shortestDistance = math.huge
@@ -442,7 +388,6 @@ end
 local function toggleCamlockLock()
     camlockActive = not camlockActive
     if camlockActive then
-        camlockTarget = getClosestTarget()
         LockUI.Text = "Lock: ON"
         LockUI.TextColor3 = Color3.fromRGB(0, 240, 255)
         LockStroke.Color = Color3.fromRGB(0, 240, 255)
@@ -626,21 +571,14 @@ end
 
 -- RENDER STEPPED (DÖNGÜ)
 RunService.RenderStepped:Connect(function(delta)
-    -- FOV UYGULAMA
-    if isFovActive and workspace.CurrentCamera then
-        workspace.CurrentCamera.FieldOfView = currentFov
-    end
-
     if LocalPlayer.Character then
         local char = LocalPlayer.Character
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
-        -- CAMLOCK
+        -- CAMLOCK (DİNAMİK OTOMATİK DÜŞMAN KAYDIRMA)
         if camlockActive and camlockSystemEnabled then
-            if not camlockTarget or not camlockTarget.Character or not camlockTarget.Character:FindFirstChild("HumanoidRootPart") or (camlockTarget.Character:FindFirstChildOfClass("Humanoid") and camlockTarget.Character:FindFirstChildOfClass("Humanoid").Health <= 0) then
-                camlockTarget = getClosestTarget()
-            end
+            camlockTarget = getClosestTarget() -- Her karede en yakın oyuncuyu anlık günceller
 
             if camlockTarget and camlockTarget.Character and camlockTarget.Character:FindFirstChild("HumanoidRootPart") then
                 local tHrp = camlockTarget.Character.HumanoidRootPart
