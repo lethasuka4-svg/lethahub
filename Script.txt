@@ -12,9 +12,17 @@ local hitboxActive = false
 local safeHitboxSize = 6.5
 local espActive = false
 local infJumpSystemEnabled = false
+
+-- CAMLOCK (EN YAKIN)
 local camlockSystemEnabled = false
 local camlockActive = false
 local camlockTarget = nil
+
+-- CAMLOCK (EN AZ CAN)
+local camlockHpSystemEnabled = false
+local camlockHpActive = false
+local camlockHpTarget = nil
+
 local predictionAmount = 0.135
 local isMenuOpen = true
 
@@ -96,17 +104,17 @@ ToggleStroke.Thickness = 1.8
 
 local isToggleDragged = makeDraggable(ToggleBtn)
 
--- ÖZEL CAMLOCK BUTONU
+-- ÖZEL CAMLOCK (EN YAKIN) BUTONU
 local LockUI = Instance.new("TextButton")
 LockUI.Name = "CamlockUI"
-LockUI.Size = UDim2.new(0, 135, 0, 42)
-LockUI.Position = UDim2.new(0.5, -67, 0.75, 0)
+LockUI.Size = UDim2.new(0, 130, 0, 42)
+LockUI.Position = UDim2.new(0.5, -135, 0.75, 0)
 LockUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
 LockUI.BackgroundTransparency = 0.25
 LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-LockUI.Text = "Lock: OFF"
-LockUI.TextSize = 13
-LockUI.Font = Enum.Font.Gotham
+LockUI.Text = "Lock (Dist): OFF"
+LockUI.TextSize = 11
+LockUI.Font = Enum.Font.GothamBold
 LockUI.Visible = false
 LockUI.Parent = ScreenGui
 
@@ -116,6 +124,27 @@ LockStroke.Color = Color3.fromRGB(255, 60, 80)
 LockStroke.Thickness = 1.6
 
 local isLockDragged = makeDraggable(LockUI)
+
+-- ÖZEL CAMLOCK (EN AZ CAN) BUTONU
+local LockHpUI = Instance.new("TextButton")
+LockHpUI.Name = "CamlockHpUI"
+LockHpUI.Size = UDim2.new(0, 130, 0, 42)
+LockHpUI.Position = UDim2.new(0.5, 5, 0.75, 0)
+LockHpUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
+LockHpUI.BackgroundTransparency = 0.25
+LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+LockHpUI.Text = "Lock (HP): OFF"
+LockHpUI.TextSize = 11
+LockHpUI.Font = Enum.Font.GothamBold
+LockHpUI.Visible = false
+LockHpUI.Parent = ScreenGui
+
+Instance.new("UICorner", LockHpUI).CornerRadius = UDim.new(0, 8)
+local LockHpStroke = Instance.new("UIStroke", LockHpUI)
+LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
+LockHpStroke.Thickness = 1.6
+
+local isLockHpDragged = makeDraggable(LockHpUI)
 
 -- MOBİL JUMP BUTONU BOYUTUNDA INF JUMP (110x110)
 local InfJumpUI = Instance.new("TextButton")
@@ -142,8 +171,8 @@ local isInfJumpDragged = makeDraggable(InfJumpUI)
 -- VIP ANA MENÜ
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -120, 0.15, 0)
+MainFrame.Size = UDim2.new(0, 240, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -120, 0.12, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
 MainFrame.BackgroundTransparency = 0.08
 MainFrame.Active = true
@@ -166,7 +195,7 @@ MainStroke.Thickness = 1.8
 makeDraggable(MainFrame)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 36)
+Title.Size = UDim2.new(1, 0, 0, 34)
 Title.BackgroundTransparency = 1
 Title.Text = "👑 LETHA HUB VIP 👑"
 Title.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -177,7 +206,7 @@ Title.Parent = MainFrame
 local function createVipButton(name, text, pos, bgCol)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Size = UDim2.new(0.86, 0, 0, 28)
+    btn.Size = UDim2.new(0.86, 0, 0, 26)
     btn.Position = pos
     btn.BackgroundColor3 = bgCol
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -197,7 +226,7 @@ end
 -- SPEED KONTROLLERİ
 local SpeedBox = Instance.new("TextBox")
 SpeedBox.Size = UDim2.new(0.86, 0, 0, 26)
-SpeedBox.Position = UDim2.new(0.07, 0, 0.11, 0)
+SpeedBox.Position = UDim2.new(0.07, 0, 0.09, 0)
 SpeedBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
 SpeedBox.TextColor3 = Color3.fromRGB(0, 240, 255)
 SpeedBox.PlaceholderText = "Hız Değeri..."
@@ -209,7 +238,7 @@ Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 6)
 
 local ConfirmBtn = Instance.new("TextButton")
 ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 26)
-ConfirmBtn.Position = UDim2.new(0.07, 0, 0.19, 0)
+ConfirmBtn.Position = UDim2.new(0.07, 0, 0.16, 0)
 ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
 ConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ConfirmBtn.Text = "Hızı Ayarla"
@@ -220,7 +249,7 @@ Instance.new("UICorner", ConfirmBtn).CornerRadius = UDim.new(0, 6)
 
 local ResetSpeedBtn = Instance.new("TextButton")
 ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 26)
-ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.19, 0)
+ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.16, 0)
 ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 ResetSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetSpeedBtn.Text = "Hızı Sıfırla"
@@ -229,17 +258,18 @@ ResetSpeedBtn.Font = Enum.Font.GothamBold
 ResetSpeedBtn.Parent = MainFrame
 Instance.new("UICorner", ResetSpeedBtn).CornerRadius = UDim.new(0, 6)
 
--- DİĞER BUTONLAR
-local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.28, 0), Color3.fromRGB(150, 30, 45))
-local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.37, 0), Color3.fromRGB(150, 30, 45))
-local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.46, 0), Color3.fromRGB(150, 30, 45))
-local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.55, 0), Color3.fromRGB(150, 30, 45))
+-- MENÜ BUTONLARI
+local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock (Yakın): KAPALI", UDim2.new(0.07, 0, 0.24, 0), Color3.fromRGB(150, 30, 45))
+local CamlockHpMenuBtn = createVipButton("CamlockHpMenuBtn", "Camlock (En Az Can): KAPALI", UDim2.new(0.07, 0, 0.32, 0), Color3.fromRGB(150, 30, 45))
+local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.40, 0), Color3.fromRGB(150, 30, 45))
+local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.48, 0), Color3.fromRGB(150, 30, 45))
+local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.56, 0), Color3.fromRGB(150, 30, 45))
 local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.64, 0), Color3.fromRGB(150, 30, 45))
 
 -- CONFIG (KAYDET & YÜKLE) BUTONLARI
 local SaveConfigBtn = Instance.new("TextButton")
 SaveConfigBtn.Size = UDim2.new(0.41, 0, 0, 28)
-SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.86, 0)
+SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.88, 0)
 SaveConfigBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 90)
 SaveConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveConfigBtn.Text = "Kaydet 💾"
@@ -250,7 +280,7 @@ Instance.new("UICorner", SaveConfigBtn).CornerRadius = UDim.new(0, 6)
 
 local LoadConfigBtn = Instance.new("TextButton")
 LoadConfigBtn.Size = UDim2.new(0.42, 0, 0, 28)
-LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.86, 0)
+LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.88, 0)
 LoadConfigBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
 LoadConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoadConfigBtn.Text = "Yükle 📂"
@@ -271,7 +301,8 @@ local function saveCurrentConfig()
         safeHitboxSize = safeHitboxSize,
         espActive = espActive,
         infJumpSystemEnabled = infJumpSystemEnabled,
-        camlockSystemEnabled = camlockSystemEnabled
+        camlockSystemEnabled = camlockSystemEnabled,
+        camlockHpSystemEnabled = camlockHpSystemEnabled
     }
     
     if writefile then
@@ -291,8 +322,12 @@ local function applyLoadedUIState()
     end
 
     LockUI.Visible = camlockSystemEnabled
-    CamlockMenuBtn.Text = camlockSystemEnabled and "Camlock Butonu: AÇIK" or "Camlock Butonu: KAPALI"
+    CamlockMenuBtn.Text = camlockSystemEnabled and "Camlock (Yakın): AÇIK" or "Camlock (Yakın): KAPALI"
     CamlockMenuBtn.BackgroundColor3 = camlockSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+
+    LockHpUI.Visible = camlockHpSystemEnabled
+    CamlockHpMenuBtn.Text = camlockHpSystemEnabled and "Camlock (En Az Can): AÇIK" or "Camlock (En Az Can): KAPALI"
+    CamlockHpMenuBtn.BackgroundColor3 = camlockHpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 
     if skillWalkMode == "AUTO" then
         BypassBtn.Text = "Skill Walk: AUTO"
@@ -319,7 +354,7 @@ end
 local function loadSavedConfig()
     if readfile and isfile and isfile(configFileName) then
         local success, data = pcall(function()
-            return HttpService:JSONEncode(readfile(configFileName))
+            return HttpService:JSONDecode(readfile(configFileName))
         end)
         
         if success and data then
@@ -331,6 +366,7 @@ local function loadSavedConfig()
             espActive = data.espActive or false
             infJumpSystemEnabled = data.infJumpSystemEnabled or false
             camlockSystemEnabled = data.camlockSystemEnabled or false
+            camlockHpSystemEnabled = data.camlockHpSystemEnabled or false
 
             applyLoadedUIState()
             LoadConfigBtn.Text = "Yüklendi! ✓"
@@ -360,7 +396,7 @@ InfJumpUI.InputBegan:Connect(function(input)
     end
 end)
 
--- EN YAKIN HEDEFİ BULMA (ANLIK OTO ODAKLAMA)
+-- 1) EN YAKIN HEDEFİ BULMA
 local function getClosestTarget()
     local nearest = nil
     local shortestDistance = math.huge
@@ -385,17 +421,64 @@ local function getClosestTarget()
     return nearest
 end
 
+-- 2) CANI EN DÜŞÜK HEDEFİ BULMA
+local function getLowestHealthTarget()
+    local lowestTarget = nil
+    local lowestHealth = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local tHum = player.Character:FindFirstChildOfClass("Humanoid")
+            if tHrp and tHum and tHum.Health > 0 then
+                if tHum.Health < lowestHealth then
+                    lowestHealth = tHum.Health
+                    lowestTarget = player
+                end
+            end
+        end
+    end
+    return lowestTarget
+end
+
+-- TOGGLE CAMLOCKS
 local function toggleCamlockLock()
     camlockActive = not camlockActive
     if camlockActive then
-        LockUI.Text = "Lock: ON"
+        if camlockHpActive then
+            camlockHpActive = false
+            LockHpUI.Text = "Lock (HP): OFF"
+            LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+            LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
+        end
+        LockUI.Text = "Lock (Dist): ON"
         LockUI.TextColor3 = Color3.fromRGB(0, 240, 255)
         LockStroke.Color = Color3.fromRGB(0, 240, 255)
     else
         camlockTarget = nil
-        LockUI.Text = "Lock: OFF"
+        LockUI.Text = "Lock (Dist): OFF"
         LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
         LockStroke.Color = Color3.fromRGB(255, 60, 80)
+    end
+end
+
+local function toggleCamlockHpLock()
+    camlockHpActive = not camlockHpActive
+    if camlockHpActive then
+        if camlockActive then
+            camlockActive = false
+            LockUI.Text = "Lock (Dist): OFF"
+            LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+            LockStroke.Color = Color3.fromRGB(255, 60, 80)
+        end
+        LockHpUI.Text = "Lock (HP): ON"
+        LockHpUI.TextColor3 = Color3.fromRGB(200, 50, 255)
+        LockHpStroke.Color = Color3.fromRGB(200, 50, 255)
+    else
+        camlockHpTarget = nil
+        LockHpUI.Text = "Lock (HP): OFF"
+        LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+        LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
     end
 end
 
@@ -403,12 +486,25 @@ CamlockMenuBtn.MouseButton1Click:Connect(function()
     camlockSystemEnabled = not camlockSystemEnabled
     LockUI.Visible = camlockSystemEnabled
     if camlockSystemEnabled then
-        CamlockMenuBtn.Text = "Camlock Butonu: AÇIK"
+        CamlockMenuBtn.Text = "Camlock (Yakın): AÇIK"
         CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
     else
-        CamlockMenuBtn.Text = "Camlock Butonu: KAPALI"
+        CamlockMenuBtn.Text = "Camlock (Yakın): KAPALI"
         CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
         if camlockActive then toggleCamlockLock() end
+    end
+end)
+
+CamlockHpMenuBtn.MouseButton1Click:Connect(function()
+    camlockHpSystemEnabled = not camlockHpSystemEnabled
+    LockHpUI.Visible = camlockHpSystemEnabled
+    if camlockHpSystemEnabled then
+        CamlockHpMenuBtn.Text = "Camlock (En Az Can): AÇIK"
+        CamlockHpMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    else
+        CamlockHpMenuBtn.Text = "Camlock (En Az Can): KAPALI"
+        CamlockHpMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
+        if camlockHpActive then toggleCamlockHpLock() end
     end
 end)
 
@@ -430,13 +526,18 @@ LockUI.Activated:Connect(function()
     end
 end)
 
+LockHpUI.Activated:Connect(function()
+    if not isLockHpDragged() then
+        toggleCamlockHpLock()
+    end
+end)
+
 ToggleBtn.Activated:Connect(function()
     if not isToggleDragged() then
         isMenuOpen = not isMenuOpen
         MainFrame.Visible = isMenuOpen
     end
 end)
-
 ConfirmBtn.MouseButton1Click:Connect(function()
     local num = tonumber(SpeedBox.Text)
     if num then
@@ -576,12 +677,22 @@ RunService.RenderStepped:Connect(function(delta)
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
-        -- CAMLOCK (DİNAMİK OTOMATİK DÜŞMAN KAYDIRMA)
+        -- CAMLOCK 1: EN YAKIN RAKİP
         if camlockActive and camlockSystemEnabled then
-            camlockTarget = getClosestTarget() -- Her karede en yakın oyuncuyu anlık günceller
-
+            camlockTarget = getClosestTarget()
             if camlockTarget and camlockTarget.Character and camlockTarget.Character:FindFirstChild("HumanoidRootPart") then
                 local tHrp = camlockTarget.Character.HumanoidRootPart
+                local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
+                local cam = workspace.CurrentCamera
+                if cam then
+                    cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos)
+                end
+            end
+        -- CAMLOCK 2: EN AZ CANI OLAN RAKİP
+        elseif camlockHpActive and camlockHpSystemEnabled then
+            camlockHpTarget = getLowestHealthTarget()
+            if camlockHpTarget and camlockHpTarget.Character and camlockHpTarget.Character:FindFirstChild("HumanoidRootPart") then
+                local tHrp = camlockHpTarget.Character.HumanoidRootPart
                 local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
                 local cam = workspace.CurrentCamera
                 if cam then
