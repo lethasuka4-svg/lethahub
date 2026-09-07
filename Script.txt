@@ -1,88 +1,56 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local SoundService = game:GetService("SoundService")
 local LocalPlayer = Players.LocalPlayer
 
--- Ayarlar
+-- AYARLAR
 local targetSpeed = 16
 local isSpeedActive = false
 local skillWalkMode = "OFF"
 local hitboxActive = false
 local safeHitboxSize = 6.5
 local espActive = false
-local voidFloorActive = true
-local infJumpActive = true
-local isMenuOpen = true
+local antiVoidActive = true
+local infJumpSystemEnabled = false
+local camlockSystemEnabled = false
 local camlockActive = false
 local camlockTarget = nil
 local predictionAmount = 0.135
-local lastGroundY = 0
-local canAirJump = true
+local isMenuOpen = true
+local lastSafeCFrame = nil
 
--- Ses Efekti
-local function playClickSound()
-    task.spawn(function()
-        pcall(function()
-            local sound = Instance.new("Sound")
-            sound.SoundId = "rbxassetid://6895079853"
-            sound.Volume = 0.5
-            sound.Parent = SoundService
-            sound:Play()
-            sound.Ended:Connect(function() sound:Destroy() end)
-            task.delay(1, function() if sound and sound.Parent then sound:Destroy() end end)
-        end)
-    end)
-end
-
--- DELTA & MOBİL UYUMLU GUI EBEVEYN TESPİTİ
-local parentGui = nil
-pcall(function()
-    if gethui then
-        parentGui = gethui()
-    end
-end)
-if not parentGui then
-    pcall(function()
-        parentGui = game:GetService("CoreGui")
-    end)
-end
-if not parentGui then
-    parentGui = LocalPlayer:WaitForChild("PlayerGui", 5)
+-- DELTA UYUMLU PARENT TESPİTİ
+local parentGui = LocalPlayer:WaitForChild("PlayerGui")
+if gethui then
+    parentGui = gethui()
+elseif game:GetService("CoreGui") then
+    parentGui = game:GetService("CoreGui")
 end
 
 -- Eski GUI Temizleme
-if parentGui:FindFirstChild("LethaHUB") then
-    parentGui.LethaHUB:Destroy()
-end
+if parentGui:FindFirstChild("LethaHUB") then parentGui.LethaHUB:Destroy() end
+if LocalPlayer.PlayerGui:FindFirstChild("LethaHUB") then LocalPlayer.PlayerGui.LethaHUB:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LethaHUB"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999999
+ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = parentGui
 
--- 🌌 TAKİP EDEN GÖRÜNMEZ VOID ZEMİNİ
-local voidPlatform = workspace:FindFirstChild("LethaVoidFloor")
-if not voidPlatform then
-    voidPlatform = Instance.new("Part")
-    voidPlatform.Name = "LethaVoidFloor"
-    voidPlatform.Size = Vector3.new(250, 2, 250)
-    voidPlatform.Anchored = true
-    voidPlatform.CanCollide = true
-    voidPlatform.Transparency = 1
-    voidPlatform.Material = Enum.Material.SmoothPlastic
-    voidPlatform.Parent = workspace
-end
-
--- SÜRÜKLEME SİSTEMİ (MOBİL UYUMLU)
+-- MOBİL SÜRÜKLEME SİSTEMİ
 local function makeDraggable(guiObject)
     local dragging, hasDragged, dragStart, startPos = false, false, nil, nil
+    local dragInputObj = nil
+
     guiObject.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             hasDragged = false
             dragStart = input.Position
             startPos = guiObject.Position
+            dragInputObj = input
+
             local conn
             conn = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -92,92 +60,141 @@ local function makeDraggable(guiObject)
             end)
         end
     end)
+
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and input == dragInputObj then
             local delta = input.Position - dragStart
             if delta.Magnitude > 6 then hasDragged = true end
             guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+
     return function() return hasDragged end
 end
 
--- 🎨 HUB AÇMA/KAPAMA BUTONU
+-- VIP HUB TOGGLE BUTTON
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Name = "ToggleBtn"
-ToggleBtn.Size = UDim2.new(0, 46, 0, 46)
-ToggleBtn.Position = UDim2.new(0, 15, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
-ToggleBtn.BackgroundTransparency = 0.35
-ToggleBtn.TextColor3 = Color3.fromRGB(0, 240, 255)
-ToggleBtn.Text = "HUB"
-ToggleBtn.TextSize = 12
-ToggleBtn.Font = Enum.Font.GothamMedium
+ToggleBtn.Size = UDim2.new(0, 52, 0, 52)
+ToggleBtn.Position = UDim2.new(0, 12, 0.3, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+ToggleBtn.BackgroundTransparency = 0.15
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+ToggleBtn.Text = "VIP"
+ToggleBtn.TextSize = 14
+ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.AutoButtonColor = false
 ToggleBtn.Parent = ScreenGui
 
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
-ToggleStroke.Color = Color3.fromRGB(0, 240, 255)
-ToggleStroke.Transparency = 0.4
-ToggleStroke.Thickness = 1.2
+ToggleStroke.Color = Color3.fromRGB(255, 215, 0)
+ToggleStroke.Thickness = 1.8
 
 local isToggleDragged = makeDraggable(ToggleBtn)
 
--- 🎯 CAMLOCK EKRAN BUTONU
+-- ÖZEL CAMLOCK BUTONU
 local LockUI = Instance.new("TextButton")
 LockUI.Name = "CamlockUI"
-LockUI.Size = UDim2.new(0, 95, 0, 32)
-LockUI.Position = UDim2.new(0.5, -47, 0.78, 0)
-LockUI.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+LockUI.Size = UDim2.new(0, 135, 0, 42)
+LockUI.Position = UDim2.new(0.5, -67, 0.75, 0)
+LockUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
 LockUI.BackgroundTransparency = 0.25
 LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
 LockUI.Text = "Lock: OFF"
-LockUI.TextSize = 11
+LockUI.TextSize = 13
 LockUI.Font = Enum.Font.GothamBold
+LockUI.Visible = false
 LockUI.Parent = ScreenGui
 
-Instance.new("UICorner", LockUI).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", LockUI).CornerRadius = UDim.new(0, 8)
 local LockStroke = Instance.new("UIStroke", LockUI)
 LockStroke.Color = Color3.fromRGB(255, 60, 80)
-LockStroke.Transparency = 0.3
-LockStroke.Thickness = 1.2
+LockStroke.Thickness = 1.6
 
 local isLockDragged = makeDraggable(LockUI)
 
--- ANA MENÜ
+-- SPAMLATILABİLİR ÖZEL INF JUMP BUTONU
+local InfJumpUI = Instance.new("TextButton")
+InfJumpUI.Name = "InfJumpUI"
+InfJumpUI.Size = UDim2.new(0, 75, 0, 75)
+InfJumpUI.Position = UDim2.new(0.82, 0, 0.62, 0)
+InfJumpUI.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+InfJumpUI.BackgroundTransparency = 0.2
+InfJumpUI.TextColor3 = Color3.fromRGB(255, 255, 255)
+InfJumpUI.Text = "🚀 JUMP"
+InfJumpUI.TextSize = 12
+InfJumpUI.Font = Enum.Font.GothamBold
+InfJumpUI.Visible = false
+InfJumpUI.Parent = ScreenGui
+
+Instance.new("UICorner", InfJumpUI).CornerRadius = UDim.new(1, 0)
+local InfJumpStroke = Instance.new("UIStroke", InfJumpUI)
+InfJumpStroke.Color = Color3.fromRGB(255, 255, 255)
+InfJumpStroke.Thickness = 2
+
+local isInfJumpDragged = makeDraggable(InfJumpUI)
+
+-- VIP ANA MENÜ
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 230, 0, 385)
-MainFrame.Position = UDim2.new(0.5, -115, 0.18, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.Size = UDim2.new(0, 235, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -117, 0.15, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
+MainFrame.BackgroundTransparency = 0.08
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local MainGradient = Instance.new("UIGradient", MainFrame)
+MainGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 20, 38)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 16))
+})
+MainGradient.Rotation = 45
+
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(130, 0, 255)
-MainStroke.Transparency = 0.4
-MainStroke.Thickness = 1.5
+MainStroke.Color = Color3.fromRGB(255, 190, 40)
+MainStroke.Thickness = 1.8
 
 makeDraggable(MainFrame)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 36)
+Title.Size = UDim2.new(1, 0, 0, 38)
 Title.BackgroundTransparency = 1
-Title.Text = "⚡ LethaHUB ⚡"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
+Title.Text = "👑 LETHA HUB VIP 👑"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
--- ELEMANLAR
+-- VIP MENÜ ELEMANLARI
+local function createVipButton(name, text, pos, bgCol)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(0.86, 0, 0, 27)
+    btn.Position = pos
+    btn.BackgroundColor3 = bgCol
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = text
+    btn.TextSize = 10
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = MainFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Transparency = 0.85
+    stroke.Thickness = 1
+    return btn
+end
+
 local SpeedBox = Instance.new("TextBox")
 SpeedBox.Size = UDim2.new(0.86, 0, 0, 26)
 SpeedBox.Position = UDim2.new(0.07, 0, 0.11, 0)
-SpeedBox.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
 SpeedBox.TextColor3 = Color3.fromRGB(0, 240, 255)
 SpeedBox.PlaceholderText = "Hız Değeri..."
 SpeedBox.Text = ""
@@ -200,7 +217,7 @@ Instance.new("UICorner", ConfirmBtn).CornerRadius = UDim.new(0, 6)
 local ResetSpeedBtn = Instance.new("TextButton")
 ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 26)
 ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.19, 0)
-ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
+ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 ResetSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetSpeedBtn.Text = "Hızı Sıfırla"
 ResetSpeedBtn.TextSize = 10
@@ -208,73 +225,33 @@ ResetSpeedBtn.Font = Enum.Font.GothamBold
 ResetSpeedBtn.Parent = MainFrame
 Instance.new("UICorner", ResetSpeedBtn).CornerRadius = UDim.new(0, 6)
 
-local CamlockMenuBtn = Instance.new("TextButton")
-CamlockMenuBtn.Size = UDim2.new(0.86, 0, 0, 26)
-CamlockMenuBtn.Position = UDim2.new(0.07, 0, 0.28, 0)
-CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
-CamlockMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CamlockMenuBtn.Text = "Camlock: OFF"
-CamlockMenuBtn.TextSize = 10
-CamlockMenuBtn.Font = Enum.Font.GothamBold
-CamlockMenuBtn.Parent = MainFrame
-Instance.new("UICorner", CamlockMenuBtn).CornerRadius = UDim.new(0, 6)
+local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.28, 0), Color3.fromRGB(150, 30, 45))
+local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.36, 0), Color3.fromRGB(150, 30, 45))
+local AntiVoidBtn = createVipButton("AntiVoidBtn", "Anti-Void Teleport: ON", UDim2.new(0.07, 0, 0.44, 0), Color3.fromRGB(0, 150, 85))
+local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.52, 0), Color3.fromRGB(150, 30, 45))
+local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.60, 0), Color3.fromRGB(150, 30, 45))
+local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.68, 0), Color3.fromRGB(150, 30, 45))
 
-local BypassBtn = Instance.new("TextButton")
-BypassBtn.Size = UDim2.new(0.86, 0, 0, 26)
-BypassBtn.Position = UDim2.new(0.07, 0, 0.37, 0)
-BypassBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
-BypassBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BypassBtn.Text = "Skill Walk: OFF"
-BypassBtn.TextSize = 10
-BypassBtn.Font = Enum.Font.GothamBold
-BypassBtn.Parent = MainFrame
-Instance.new("UICorner", BypassBtn).CornerRadius = UDim.new(0, 6)
+-- SPAMLATILABİLİR ZIPLAMA MANTIĞI (BEKLEME SÜRESİNİ SIFIRLAR)
+local function executeSpamJump()
+    if LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hrp and hum and hum.Health > 0 then
+            -- Dikey hızı sıfırlayıp anında yukarı doğru ivmelendirir (cooldown yoktur)
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 52, hrp.AssemblyLinearVelocity.Z)
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end
 
-local InfJumpBtn = Instance.new("TextButton")
-InfJumpBtn.Size = UDim2.new(0.86, 0, 0, 26)
-InfJumpBtn.Position = UDim2.new(0.07, 0, 0.46, 0)
-InfJumpBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 90)
-InfJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-InfJumpBtn.Text = "Infinite Jump: ON"
-InfJumpBtn.TextSize = 10
-InfJumpBtn.Font = Enum.Font.GothamBold
-InfJumpBtn.Parent = MainFrame
-Instance.new("UICorner", InfJumpBtn).CornerRadius = UDim.new(0, 6)
+InfJumpUI.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not isInfJumpDragged() then
+        executeSpamJump()
+    end
+end)
 
-local VoidFloorBtn = Instance.new("TextButton")
-VoidFloorBtn.Size = UDim2.new(0.86, 0, 0, 26)
-VoidFloorBtn.Position = UDim2.new(0.07, 0, 0.55, 0)
-VoidFloorBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 90)
-VoidFloorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-VoidFloorBtn.Text = "Görünmez Zemin: ON"
-VoidFloorBtn.TextSize = 10
-VoidFloorBtn.Font = Enum.Font.GothamBold
-VoidFloorBtn.Parent = MainFrame
-Instance.new("UICorner", VoidFloorBtn).CornerRadius = UDim.new(0, 6)
-
-local HitboxBtn = Instance.new("TextButton")
-HitboxBtn.Size = UDim2.new(0.86, 0, 0, 26)
-HitboxBtn.Position = UDim2.new(0.07, 0, 0.64, 0)
-HitboxBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
-HitboxBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HitboxBtn.Text = "Safe Hitbox (6.5): OFF"
-HitboxBtn.TextSize = 10
-HitboxBtn.Font = Enum.Font.GothamBold
-HitboxBtn.Parent = MainFrame
-Instance.new("UICorner", HitboxBtn).CornerRadius = UDim.new(0, 6)
-
-local EspBtn = Instance.new("TextButton")
-EspBtn.Size = UDim2.new(0.86, 0, 0, 26)
-EspBtn.Position = UDim2.new(0.07, 0, 0.73, 0)
-EspBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
-EspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-EspBtn.Text = "Player ESP: OFF"
-EspBtn.TextSize = 10
-EspBtn.Font = Enum.Font.GothamBold
-EspBtn.Parent = MainFrame
-Instance.new("UICorner", EspBtn).CornerRadius = UDim.new(0, 6)
-
--- CAMLOCK SİSTEMİ
+-- CAMLOCK HEDEF
 local function getClosestTarget()
     local nearest = nil
     local shortestDistance = math.huge
@@ -301,59 +278,76 @@ local function getClosestTarget()
     return nearest
 end
 
-local function toggleCamlock()
+local function toggleCamlockLock()
     camlockActive = not camlockActive
     if camlockActive then
         camlockTarget = getClosestTarget()
         LockUI.Text = "Lock: ON"
         LockUI.TextColor3 = Color3.fromRGB(0, 240, 255)
         LockStroke.Color = Color3.fromRGB(0, 240, 255)
-        CamlockMenuBtn.Text = "Camlock: ON"
-        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 90)
     else
         camlockTarget = nil
         LockUI.Text = "Lock: OFF"
         LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
         LockStroke.Color = Color3.fromRGB(255, 60, 80)
-        CamlockMenuBtn.Text = "Camlock: OFF"
-        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
     end
 end
 
--- ETKİLEŞİMLER
-LockUI.Activated:Connect(function()
-    if not isLockDragged() then
-        playClickSound()
-        toggleCamlock()
+CamlockMenuBtn.MouseButton1Click:Connect(function()
+    camlockSystemEnabled = not camlockSystemEnabled
+    LockUI.Visible = camlockSystemEnabled
+    if camlockSystemEnabled then
+        CamlockMenuBtn.Text = "Camlock Butonu: AÇIK"
+        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    else
+        CamlockMenuBtn.Text = "Camlock Butonu: KAPALI"
+        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
+        if camlockActive then toggleCamlockLock() end
     end
 end)
 
-CamlockMenuBtn.MouseButton1Click:Connect(function()
-    playClickSound()
-    toggleCamlock()
+InfJumpMenuBtn.MouseButton1Click:Connect(function()
+    infJumpSystemEnabled = not infJumpSystemEnabled
+    InfJumpUI.Visible = infJumpSystemEnabled
+    if infJumpSystemEnabled then
+        InfJumpMenuBtn.Text = "Inf Jump (Spam): ON"
+        InfJumpMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    else
+        InfJumpMenuBtn.Text = "Inf Jump (Spam): OFF"
+        InfJumpMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
+    end
+end)
+
+AntiVoidBtn.MouseButton1Click:Connect(function()
+    antiVoidActive = not antiVoidActive
+    AntiVoidBtn.Text = antiVoidActive and "Anti-Void Teleport: ON" or "Anti-Void Teleport: OFF"
+    AntiVoidBtn.BackgroundColor3 = antiVoidActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+LockUI.Activated:Connect(function()
+    if not isLockDragged() then
+        toggleCamlockLock()
+    end
 end)
 
 ToggleBtn.Activated:Connect(function()
     if not isToggleDragged() then
-        playClickSound()
         isMenuOpen = not isMenuOpen
         MainFrame.Visible = isMenuOpen
     end
 end)
 
 ConfirmBtn.MouseButton1Click:Connect(function()
-    playClickSound()
     local num = tonumber(SpeedBox.Text)
     if num then
         targetSpeed = num
         isSpeedActive = true
         ConfirmBtn.Text = "Aktif: " .. tostring(targetSpeed)
-        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 90)
+        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
     end
 end)
 
 ResetSpeedBtn.MouseButton1Click:Connect(function()
-    playClickSound()
     isSpeedActive = false
     targetSpeed = 16
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
@@ -364,11 +358,10 @@ ResetSpeedBtn.MouseButton1Click:Connect(function()
 end)
 
 BypassBtn.MouseButton1Click:Connect(function()
-    playClickSound()
     if skillWalkMode == "OFF" then
         skillWalkMode = "AUTO"
         BypassBtn.Text = "Skill Walk: AUTO"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 90)
+        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
     elseif skillWalkMode == "AUTO" then
         skillWalkMode = "ALWAYS"
         BypassBtn.Text = "Skill Walk: ALWAYS"
@@ -376,63 +369,132 @@ BypassBtn.MouseButton1Click:Connect(function()
     else
         skillWalkMode = "OFF"
         BypassBtn.Text = "Skill Walk: OFF"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(160, 35, 50)
+        BypassBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
     end
 end)
 
-InfJumpBtn.MouseButton1Click:Connect(function()
-    playClickSound()
-    infJumpActive = not infJumpActive
-    InfJumpBtn.Text = infJumpActive and "Infinite Jump: ON" or "Infinite Jump: OFF"
-    InfJumpBtn.BackgroundColor3 = infJumpActive and Color3.fromRGB(0, 160, 90) or Color3.fromRGB(160, 35, 50)
-end)
-
-VoidFloorBtn.MouseButton1Click:Connect(function()
-    playClickSound()
-    voidFloorActive = not voidFloorActive
-    voidPlatform.CanCollide = voidFloorActive
-    VoidFloorBtn.Text = voidFloorActive and "Görünmez Zemin: ON" or "Görünmez Zemin: OFF"
-    VoidFloorBtn.BackgroundColor3 = voidFloorActive and Color3.fromRGB(0, 160, 90) or Color3.fromRGB(160, 35, 50)
-end)
-
 HitboxBtn.MouseButton1Click:Connect(function()
-    playClickSound()
     hitboxActive = not hitboxActive
     HitboxBtn.Text = hitboxActive and "Safe Hitbox (6.5): ON" or "Safe Hitbox (6.5): OFF"
-    HitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(0, 160, 90) or Color3.fromRGB(160, 35, 50)
+    HitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 end)
 
 EspBtn.MouseButton1Click:Connect(function()
-    playClickSound()
     espActive = not espActive
     EspBtn.Text = espActive and "Player ESP: ON" or "Player ESP: OFF"
-    EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 160, 90) or Color3.fromRGB(160, 35, 50)
+    EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 end)
 
--- INFINITE JUMP
-UserInputService.JumpRequest:Connect(function()
-    if infJumpActive and canAirJump and LocalPlayer.Character then
+-- DİKDÖRTGEN ESP
+local function updatePlayerESP(player)
+    if player ~= LocalPlayer and player.Character then
+        local char = player.Character
+        local head = char:FindFirstChild("Head")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+
+        if head and hum then
+            local bg = head:FindFirstChild("LethaESP_Billboard")
+            if espActive then
+                if not bg then
+                    bg = Instance.new("BillboardGui")
+                    bg.Name = "LethaESP_Billboard"
+                    bg.Adornee = head
+                    bg.Size = UDim2.new(0, 110, 0, 42)
+                    bg.StudsOffset = Vector3.new(0, 2.8, 0)
+                    bg.AlwaysOnTop = true
+
+                    local nameTxt = Instance.new("TextLabel")
+                    nameTxt.Name = "NameTxt"
+                    nameTxt.Size = UDim2.new(1, 0, 0, 16)
+                    nameTxt.BackgroundTransparency = 1
+                    nameTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    nameTxt.TextStrokeTransparency = 0.2
+                    nameTxt.TextSize = 11
+                    nameTxt.Font = Enum.Font.GothamBold
+                    nameTxt.Parent = bg
+
+                    local hpBg = Instance.new("Frame")
+                    hpBg.Name = "HPBg"
+                    hpBg.Size = UDim2.new(0.9, 0, 0, 8)
+                    hpBg.Position = UDim2.new(0.05, 0, 0.48, 0)
+                    hpBg.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+                    hpBg.BorderSizePixel = 1
+                    hpBg.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                    hpBg.Parent = bg
+
+                    local hpFill = Instance.new("Frame")
+                    hpFill.Name = "HPFill"
+                    hpFill.Size = UDim2.new(1, 0, 1, 0)
+                    hpFill.BackgroundColor3 = Color3.fromRGB(0, 230, 110)
+                    hpFill.BorderSizePixel = 0
+                    hpFill.Parent = hpBg
+
+                    local hpTxt = Instance.new("TextLabel")
+                    hpTxt.Name = "HPTxt"
+                    hpTxt.Size = UDim2.new(1, 0, 1, 0)
+                    hpTxt.BackgroundTransparency = 1
+                    hpTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    hpTxt.TextStrokeTransparency = 0.3
+                    hpTxt.TextSize = 8
+                    hpTxt.Font = Enum.Font.GothamBold
+                    hpTxt.Parent = hpBg
+
+                    bg.Parent = head
+                end
+
+                bg.NameTxt.Text = player.DisplayName
+                local hpPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+                bg.HPBg.HPFill.Size = UDim2.new(hpPercent, 0, 1, 0)
+                bg.HPBg.HPTxt.Text = "%" .. tostring(math.floor(hpPercent * 100))
+
+                local hl = char:FindFirstChild("LethaESP_Highlight")
+                if not hl then
+                    hl = Instance.new("Highlight")
+                    hl.Name = "LethaESP_Highlight"
+                    hl.FillColor = Color3.fromRGB(0, 255, 120)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.75
+                    hl.OutlineTransparency = 0.3
+                    hl.Parent = char
+                end
+            else
+                if bg then bg:Destroy() end
+                local hl = char:FindFirstChild("LethaESP_Highlight")
+                if hl then hl:Destroy() end
+            end
+        end
+    end
+end
+
+-- HEARTBEAT / RENDER STEPPED KONTROLLERİ
+RunService.Heartbeat:Connect(function()
+    if LocalPlayer.Character then
         local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hrp and hum then
-            canAirJump = false
-            local jPower = (hum.JumpPower > 0) and hum.JumpPower or 50
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, jPower, hrp.AssemblyLinearVelocity.Z)
-            task.wait(0.12)
-            canAirJump = true
+
+        -- KARADAYKEN EN SON GÜVENLİ POZİSYONU KAYDET
+        if hum and hrp and hum.FloorMaterial ~= Enum.Material.Air and hum.Health > 0 then
+            lastSafeCFrame = hrp.CFrame
+        end
+
+        -- ANTI-VOID: BOŞLUĞA DÜŞERSE KARAYA GEL
+        if antiVoidActive and hrp and hrp.Position.Y < -30 then
+            if lastSafeCFrame then
+                hrp.CFrame = lastSafeCFrame + Vector3.new(0, 4, 0)
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end
         end
     end
 end)
 
--- ANA DÖNGÜ (RENDER STEPPED)
 RunService.RenderStepped:Connect(function(delta)
     if LocalPlayer.Character then
         local char = LocalPlayer.Character
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
-        -- 1. CAMLOCK VE HAREKET TAHMİNİ
-        if camlockActive then
+        -- CAMLOCK
+        if camlockActive and camlockSystemEnabled then
             if not camlockTarget or not camlockTarget.Character or not camlockTarget.Character:FindFirstChild("HumanoidRootPart") or (camlockTarget.Character:FindFirstChildOfClass("Humanoid") and camlockTarget.Character:FindFirstChildOfClass("Humanoid").Health <= 0) then
                 camlockTarget = getClosestTarget()
             end
@@ -447,49 +509,17 @@ RunService.RenderStepped:Connect(function(delta)
             end
         end
 
-        -- 2. DÜZELTİLMİŞ GÖRÜNMEZ ZEMİN (ALT PLATFORMA İNMEYİ SAĞLAR)
-        if voidFloorActive and hrp and humanoid then
-            local rayParams = RaycastParams.new()
-            rayParams.FilterDescendantsInstances = {char, voidPlatform}
-            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-
-            local rayResult = workspace:Raycast(hrp.Position, Vector3.new(0, -1000, 0), rayParams)
-            if rayResult then
-                lastGroundY = rayResult.Position.Y - 2.5
-            end
-
-            if lastGroundY ~= 0 then
-                voidPlatform.CFrame = CFrame.new(hrp.Position.X, lastGroundY, hrp.Position.Z)
-                voidPlatform.CanCollide = true
-            end
-        else
-            voidPlatform.CanCollide = false
-        end
-
-        -- 3. MOBİL ZIPLAMA BUTONU DÜZELTME
-        if infJumpActive then
-            pcall(function()
-                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if pGui and pGui:FindFirstChild("TouchGui") then
-                    local jBtn = pGui.TouchGui:FindFirstChild("JumpButton", true)
-                    if jBtn then
-                        jBtn.Visible = true
-                        jBtn.Active = true
-                    end
-                end
-            end)
-        end
-
-        -- 4. HIZ SABİTLEME
-        if isSpeedActive and humanoid and humanoid.WalkSpeed ~= targetSpeed then
+        -- HIZ
+        if isSpeedActive and humanoid and humanoid.Health > 0 and humanoid.WalkSpeed ~= targetSpeed then
             humanoid.WalkSpeed = targetSpeed
         end
 
-        -- 5. SKILL WALK
-        if skillWalkMode ~= "OFF" and humanoid and hrp then
-            local isCasting = (humanoid.WalkSpeed <= 2) or hrp.Anchored or char:FindFirstChild("Stun") or char:FindFirstChild("Skill")
-            if (skillWalkMode == "ALWAYS") or (skillWalkMode == "AUTO" and isCasting) then
-                if hrp.Anchored then hrp.Anchored = false end
+        -- SKILL WALK (STUN KORUMALI)
+        if skillWalkMode ~= "OFF" and humanoid and hrp and humanoid.Health > 0 then
+            local isStunned = char:FindFirstChild("Stun") or char:FindFirstChild("Knockdown") or (humanoid:GetState() == Enum.HumanoidStateType.Physics)
+            local isCasting = (humanoid.WalkSpeed <= 2) or char:FindFirstChild("Skill")
+
+            if not isStunned and ((skillWalkMode == "ALWAYS") or (skillWalkMode == "AUTO" and isCasting)) then
                 if humanoid.MoveDirection.Magnitude > 0 then
                     local spd = isSpeedActive and targetSpeed or 16
                     hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (spd * delta))
@@ -497,16 +527,16 @@ RunService.RenderStepped:Connect(function(delta)
             end
         end
 
-        -- 6. SAFE HITBOX
+        -- HITBOX & ESP
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
                 if tHrp then
                     if hitboxActive then
                         tHrp.Size = Vector3.new(safeHitboxSize, safeHitboxSize, safeHitboxSize)
-                        tHrp.Transparency = 0.75
-                        tHrp.Color = Color3.fromRGB(0, 240, 255)
-                        tHrp.Material = Enum.Material.Neon
+                        tHrp.Transparency = 0.92
+                        tHrp.Color = Color3.fromRGB(0, 180, 255)
+                        tHrp.Material = Enum.Material.SmoothPlastic
                         tHrp.CanCollide = false
                     else
                         if tHrp.Size ~= Vector3.new(2, 2, 1) then
@@ -515,18 +545,9 @@ RunService.RenderStepped:Connect(function(delta)
                         end
                     end
                 end
+
+                updatePlayerESP(player)
             end
         end
-
-        -- 7. YEŞİL CAN BARLI ESP
-        if espActive then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local tChar = player.Character
-                    local head = tChar:FindFirstChild("Head") or tChar:FindFirstChild("HumanoidRootPart")
-                    local tHum = tChar:FindFirstChildOfClass("Humanoid")
-
-                    if head and tHum then
-                        local hl = tChar:FindFirstChild("LethaESP_Highlight")
-                        if not hl then
-                        
+    end
+end)
