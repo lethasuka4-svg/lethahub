@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- AYARLAR
@@ -10,16 +11,22 @@ local skillWalkMode = "OFF"
 local hitboxActive = false
 local safeHitboxSize = 6.5
 local espActive = false
-local antiVoidActive = true
 local infJumpSystemEnabled = false
 local camlockSystemEnabled = false
 local camlockActive = false
 local camlockTarget = nil
 local predictionAmount = 0.135
 local isMenuOpen = true
-local lastSafeCFrame = nil
 
--- DELTA UYUMLU PARENT TESPİTİ
+-- FOV & KAMERA AYARLARI
+local currentFov = 70
+local isFovActive = false
+
+-- SONSUZ KAMERA UZAKLAŞTIRMA (ZOOM FIX)
+LocalPlayer.CameraMaxZoomDistance = 100000
+LocalPlayer.CameraMinZoomDistance = 0.5
+
+-- DELTA / EXECUTOR UYUMLU PARENT TESPİTİ
 local parentGui = LocalPlayer:WaitForChild("PlayerGui")
 if gethui then
     parentGui = gethui()
@@ -82,7 +89,7 @@ ToggleBtn.BackgroundTransparency = 0.15
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 ToggleBtn.Text = "VIP"
 ToggleBtn.TextSize = 14
-ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Font = Enum.Font.Gotham
 ToggleBtn.AutoButtonColor = false
 ToggleBtn.Parent = ScreenGui
 
@@ -103,7 +110,7 @@ LockUI.BackgroundTransparency = 0.25
 LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
 LockUI.Text = "Lock: OFF"
 LockUI.TextSize = 13
-LockUI.Font = Enum.Font.GothamBold
+LockUI.Font = Enum.Font.Gotham
 LockUI.Visible = false
 LockUI.Parent = ScreenGui
 
@@ -114,16 +121,16 @@ LockStroke.Thickness = 1.6
 
 local isLockDragged = makeDraggable(LockUI)
 
--- SPAMLATILABİLİR ÖZEL INF JUMP BUTONU
+-- ORIJINAL ROBLOX MOBİL JUMP BUTONU TASARIMLI INF JUMP
 local InfJumpUI = Instance.new("TextButton")
 InfJumpUI.Name = "InfJumpUI"
-InfJumpUI.Size = UDim2.new(0, 75, 0, 75)
-InfJumpUI.Position = UDim2.new(0.82, 0, 0.62, 0)
-InfJumpUI.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-InfJumpUI.BackgroundTransparency = 0.2
+InfJumpUI.Size = UDim2.new(0, 65, 0, 65)
+InfJumpUI.Position = UDim2.new(0.83, 0, 0.65, 0)
+InfJumpUI.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+InfJumpUI.BackgroundTransparency = 0.45
 InfJumpUI.TextColor3 = Color3.fromRGB(255, 255, 255)
-InfJumpUI.Text = "🚀 JUMP"
-InfJumpUI.TextSize = 12
+InfJumpUI.Text = "▲"
+InfJumpUI.TextSize = 26
 InfJumpUI.Font = Enum.Font.GothamBold
 InfJumpUI.Visible = false
 InfJumpUI.Parent = ScreenGui
@@ -131,15 +138,16 @@ InfJumpUI.Parent = ScreenGui
 Instance.new("UICorner", InfJumpUI).CornerRadius = UDim.new(1, 0)
 local InfJumpStroke = Instance.new("UIStroke", InfJumpUI)
 InfJumpStroke.Color = Color3.fromRGB(255, 255, 255)
-InfJumpStroke.Thickness = 2
+InfJumpStroke.Transparency = 0.3
+InfJumpStroke.Thickness = 2.5
 
 local isInfJumpDragged = makeDraggable(InfJumpUI)
 
 -- VIP ANA MENÜ
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 235, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -117, 0.15, 0)
+MainFrame.Size = UDim2.new(0, 240, 0, 430)
+MainFrame.Position = UDim2.new(0.5, -120, 0.12, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
 MainFrame.BackgroundTransparency = 0.08
 MainFrame.Active = true
@@ -162,7 +170,7 @@ MainStroke.Thickness = 1.8
 makeDraggable(MainFrame)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 38)
+Title.Size = UDim2.new(1, 0, 0, 36)
 Title.BackgroundTransparency = 1
 Title.Text = "👑 LETHA HUB VIP 👑"
 Title.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -170,7 +178,6 @@ Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
--- VIP MENÜ ELEMANLARI
 local function createVipButton(name, text, pos, bgCol)
     local btn = Instance.new("TextButton")
     btn.Name = name
@@ -191,21 +198,22 @@ local function createVipButton(name, text, pos, bgCol)
     return btn
 end
 
+-- SPEED KONTROLLERİ
 local SpeedBox = Instance.new("TextBox")
-SpeedBox.Size = UDim2.new(0.86, 0, 0, 26)
-SpeedBox.Position = UDim2.new(0.07, 0, 0.11, 0)
+SpeedBox.Size = UDim2.new(0.86, 0, 0, 24)
+SpeedBox.Position = UDim2.new(0.07, 0, 0.09, 0)
 SpeedBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
 SpeedBox.TextColor3 = Color3.fromRGB(0, 240, 255)
 SpeedBox.PlaceholderText = "Hız Değeri..."
 SpeedBox.Text = ""
-SpeedBox.TextSize = 11
+SpeedBox.TextSize = 10
 SpeedBox.Font = Enum.Font.GothamMedium
 SpeedBox.Parent = MainFrame
 Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 6)
 
 local ConfirmBtn = Instance.new("TextButton")
-ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 26)
-ConfirmBtn.Position = UDim2.new(0.07, 0, 0.19, 0)
+ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 24)
+ConfirmBtn.Position = UDim2.new(0.07, 0, 0.15, 0)
 ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
 ConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ConfirmBtn.Text = "Hızı Ayarla"
@@ -215,8 +223,8 @@ ConfirmBtn.Parent = MainFrame
 Instance.new("UICorner", ConfirmBtn).CornerRadius = UDim.new(0, 6)
 
 local ResetSpeedBtn = Instance.new("TextButton")
-ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 26)
-ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.19, 0)
+ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 24)
+ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.15, 0)
 ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 ResetSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetSpeedBtn.Text = "Hızı Sıfırla"
@@ -225,20 +233,175 @@ ResetSpeedBtn.Font = Enum.Font.GothamBold
 ResetSpeedBtn.Parent = MainFrame
 Instance.new("UICorner", ResetSpeedBtn).CornerRadius = UDim.new(0, 6)
 
-local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.28, 0), Color3.fromRGB(150, 30, 45))
-local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.36, 0), Color3.fromRGB(150, 30, 45))
-local AntiVoidBtn = createVipButton("AntiVoidBtn", "Anti-Void Teleport: ON", UDim2.new(0.07, 0, 0.44, 0), Color3.fromRGB(0, 150, 85))
-local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.52, 0), Color3.fromRGB(150, 30, 45))
-local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.60, 0), Color3.fromRGB(150, 30, 45))
-local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.68, 0), Color3.fromRGB(150, 30, 45))
+-- FOV KONTROLLERİ (0 - 120)
+local FovBox = Instance.new("TextBox")
+FovBox.Size = UDim2.new(0.41, 0, 0, 24)
+FovBox.Position = UDim2.new(0.07, 0, 0.22, 0)
+FovBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
+FovBox.TextColor3 = Color3.fromRGB(255, 180, 0)
+FovBox.PlaceholderText = "FOV (0-120)"
+FovBox.Text = ""
+FovBox.TextSize = 10
+FovBox.Font = Enum.Font.GothamMedium
+FovBox.Parent = MainFrame
+Instance.new("UICorner", FovBox).CornerRadius = UDim.new(0, 6)
 
--- SPAMLATILABİLİR ZIPLAMA MANTIĞI (BEKLEME SÜRESİNİ SIFIRLAR)
+local FovConfirmBtn = Instance.new("TextButton")
+FovConfirmBtn.Size = UDim2.new(0.42, 0, 0, 24)
+FovConfirmBtn.Position = UDim2.new(0.51, 0, 0.22, 0)
+FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(130, 80, 200)
+FovConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FovConfirmBtn.Text = "FOV Ayarla"
+FovConfirmBtn.TextSize = 10
+FovConfirmBtn.Font = Enum.Font.GothamBold
+FovConfirmBtn.Parent = MainFrame
+Instance.new("UICorner", FovConfirmBtn).CornerRadius = UDim.new(0, 6)
+
+-- DİĞER BUTONLAR
+local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock Butonu: KAPALI", UDim2.new(0.07, 0, 0.29, 0), Color3.fromRGB(150, 30, 45))
+local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.36, 0), Color3.fromRGB(150, 30, 45))
+local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.43, 0), Color3.fromRGB(150, 30, 45))
+local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.50, 0), Color3.fromRGB(150, 30, 45))
+local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.57, 0), Color3.fromRGB(150, 30, 45))
+
+-- CONFIG (KAYDET & YÜKLE) BUTONLARI
+local SaveConfigBtn = Instance.new("TextButton")
+SaveConfigBtn.Size = UDim2.new(0.41, 0, 0, 28)
+SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.88, 0)
+SaveConfigBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 90)
+SaveConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveConfigBtn.Text = "Kaydet 💾"
+SaveConfigBtn.TextSize = 10
+SaveConfigBtn.Font = Enum.Font.GothamBold
+SaveConfigBtn.Parent = MainFrame
+Instance.new("UICorner", SaveConfigBtn).CornerRadius = UDim.new(0, 6)
+
+local LoadConfigBtn = Instance.new("TextButton")
+LoadConfigBtn.Size = UDim2.new(0.42, 0, 0, 28)
+LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.88, 0)
+LoadConfigBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
+LoadConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadConfigBtn.Text = "Yükle 📂"
+LoadConfigBtn.TextSize = 10
+LoadConfigBtn.Font = Enum.Font.GothamBold
+LoadConfigBtn.Parent = MainFrame
+Instance.new("UICorner", LoadConfigBtn).CornerRadius = UDim.new(0, 6)
+
+-- CONFIG SİSTEMİ MANTIĞI
+local configFileName = "LethaHub_VIP_Config.json"
+
+local function saveCurrentConfig()
+    local configData = {
+        targetSpeed = targetSpeed,
+        isSpeedActive = isSpeedActive,
+        skillWalkMode = skillWalkMode,
+        hitboxActive = hitboxActive,
+        safeHitboxSize = safeHitboxSize,
+        espActive = espActive,
+        infJumpSystemEnabled = infJumpSystemEnabled,
+        camlockSystemEnabled = camlockSystemEnabled,
+        currentFov = currentFov,
+        isFovActive = isFovActive
+    }
+    
+    if writefile then
+        writefile(configFileName, HttpService:JSONEncode(configData))
+        SaveConfigBtn.Text = "Kaydedildi! ✓"
+        task.delay(1.5, function() SaveConfigBtn.Text = "Kaydet 💾" end)
+    end
+end
+
+local function applyLoadedUIState()
+    -- Hız Güncelleme
+    if isSpeedActive then
+        ConfirmBtn.Text = "Aktif: " .. tostring(targetSpeed)
+        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    else
+        ConfirmBtn.Text = "Hızı Ayarla"
+        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
+    end
+
+    -- FOV Güncelleme
+    if isFovActive then
+        FovConfirmBtn.Text = "FOV: " .. tostring(currentFov)
+        FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    end
+
+    -- Camlock Güncelleme
+    LockUI.Visible = camlockSystemEnabled
+    CamlockMenuBtn.Text = camlockSystemEnabled and "Camlock Butonu: AÇIK" or "Camlock Butonu: KAPALI"
+    CamlockMenuBtn.BackgroundColor3 = camlockSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+
+    -- Skill Walk Güncelleme
+    if skillWalkMode == "AUTO" then
+        BypassBtn.Text = "Skill Walk: AUTO"
+        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    elseif skillWalkMode == "ALWAYS" then
+        BypassBtn.Text = "Skill Walk: ALWAYS"
+        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
+    else
+        BypassBtn.Text = "Skill Walk: OFF"
+        BypassBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
+    end
+
+    -- Inf Jump Güncelleme
+    InfJumpUI.Visible = infJumpSystemEnabled
+    InfJumpMenuBtn.Text = infJumpSystemEnabled and "Inf Jump (Spam): ON" or "Inf Jump (Spam): OFF"
+    InfJumpMenuBtn.BackgroundColor3 = infJumpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+
+    -- Hitbox & ESP
+    HitboxBtn.Text = hitboxActive and "Safe Hitbox (6.5): ON" or "Safe Hitbox (6.5): OFF"
+    HitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+
+    EspBtn.Text = espActive and "Player ESP: ON" or "Player ESP: OFF"
+    EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end
+
+local function loadSavedConfig()
+    if readfile and isfile and isfile(configFileName) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(configFileName))
+        end)
+        
+        if success and data then
+            targetSpeed = data.targetSpeed or 16
+            isSpeedActive = data.isSpeedActive or false
+            skillWalkMode = data.skillWalkMode or "OFF"
+            hitboxActive = data.hitboxActive or false
+            safeHitboxSize = data.safeHitboxSize or 6.5
+            espActive = data.espActive or false
+            infJumpSystemEnabled = data.infJumpSystemEnabled or false
+            camlockSystemEnabled = data.camlockSystemEnabled or false
+            currentFov = data.currentFov or 70
+            isFovActive = data.isFovActive or false
+
+            applyLoadedUIState()
+            LoadConfigBtn.Text = "Yüklendi! ✓"
+            task.delay(1.5, function() LoadConfigBtn.Text = "Yükle 📂" end)
+        end
+    end
+end
+
+SaveConfigBtn.MouseButton1Click:Connect(saveCurrentConfig)
+LoadConfigBtn.MouseButton1Click:Connect(loadSavedConfig)
+
+-- FOV AYARLAMA
+FovConfirmBtn.MouseButton1Click:Connect(function()
+    local num = tonumber(FovBox.Text)
+    if num then
+        currentFov = math.clamp(num, 0, 120)
+        isFovActive = true
+        FovConfirmBtn.Text = "FOV: " .. tostring(currentFov)
+        FovConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    end
+end)
+
+-- ZIPLAMA MANTIĞI
 local function executeSpamJump()
     if LocalPlayer.Character then
         local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hrp and hum and hum.Health > 0 then
-            -- Dikey hızı sıfırlayıp anında yukarı doğru ivmelendirir (cooldown yoktur)
             hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 52, hrp.AssemblyLinearVelocity.Z)
             hum:ChangeState(Enum.HumanoidStateType.Jumping)
         end
@@ -251,26 +414,24 @@ InfJumpUI.InputBegan:Connect(function(input)
     end
 end)
 
--- CAMLOCK HEDEF
+-- EN YAKIN HEDEFİ BULMA (3D MESAFE)
 local function getClosestTarget()
     local nearest = nil
     local shortestDistance = math.huge
-    local cam = workspace.CurrentCamera
-    if not cam then return nil end
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local myChar = LocalPlayer.Character
+    if not myChar then return nil end
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return nil end
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
             local tHum = player.Character:FindFirstChildOfClass("Humanoid")
             if tHrp and tHum and tHum.Health > 0 then
-                local pos, onScreen = cam:WorldToViewportPoint(tHrp.Position)
-                if onScreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        nearest = player
-                    end
+                local dist = (tHrp.Position - myHrp.Position).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    nearest = player
                 end
             end
         end
@@ -316,12 +477,6 @@ InfJumpMenuBtn.MouseButton1Click:Connect(function()
         InfJumpMenuBtn.Text = "Inf Jump (Spam): OFF"
         InfJumpMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
     end
-end)
-
-AntiVoidBtn.MouseButton1Click:Connect(function()
-    antiVoidActive = not antiVoidActive
-    AntiVoidBtn.Text = antiVoidActive and "Anti-Void Teleport: ON" or "Anti-Void Teleport: OFF"
-    AntiVoidBtn.BackgroundColor3 = antiVoidActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 end)
 
 LockUI.Activated:Connect(function()
@@ -385,7 +540,7 @@ EspBtn.MouseButton1Click:Connect(function()
     EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 end)
 
--- DİKDÖRTGEN ESP
+-- ESP FONKSİYONU
 local function updatePlayerESP(player)
     if player ~= LocalPlayer and player.Character then
         local char = player.Character
@@ -407,25 +562,28 @@ local function updatePlayerESP(player)
                     nameTxt.Name = "NameTxt"
                     nameTxt.Size = UDim2.new(1, 0, 0, 16)
                     nameTxt.BackgroundTransparency = 1
-                    nameTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    nameTxt.TextStrokeTransparency = 0.2
-                    nameTxt.TextSize = 11
+                    nameTxt.TextColor3 = Color3.fromRGB(220, 220, 230)
+                    nameTxt.TextTransparency = 0.15
+                    nameTxt.TextStrokeTransparency = 0.6
+                    nameTxt.TextSize = 10
                     nameTxt.Font = Enum.Font.GothamBold
                     nameTxt.Parent = bg
 
                     local hpBg = Instance.new("Frame")
                     hpBg.Name = "HPBg"
-                    hpBg.Size = UDim2.new(0.9, 0, 0, 8)
-                    hpBg.Position = UDim2.new(0.05, 0, 0.48, 0)
-                    hpBg.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+                    hpBg.Size = UDim2.new(0.85, 0, 0, 7)
+                    hpBg.Position = UDim2.new(0.075, 0, 0.48, 0)
+                    hpBg.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+                    hpBg.BackgroundTransparency = 0.3
                     hpBg.BorderSizePixel = 1
-                    hpBg.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                    hpBg.BorderColor3 = Color3.fromRGB(40, 40, 50)
                     hpBg.Parent = bg
 
                     local hpFill = Instance.new("Frame")
                     hpFill.Name = "HPFill"
                     hpFill.Size = UDim2.new(1, 0, 1, 0)
-                    hpFill.BackgroundColor3 = Color3.fromRGB(0, 230, 110)
+                    hpFill.BackgroundColor3 = Color3.fromRGB(0, 190, 100)
+                    hpFill.BackgroundTransparency = 0.15
                     hpFill.BorderSizePixel = 0
                     hpFill.Parent = hpBg
 
@@ -433,8 +591,8 @@ local function updatePlayerESP(player)
                     hpTxt.Name = "HPTxt"
                     hpTxt.Size = UDim2.new(1, 0, 1, 0)
                     hpTxt.BackgroundTransparency = 1
-                    hpTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    hpTxt.TextStrokeTransparency = 0.3
+                    hpTxt.TextColor3 = Color3.fromRGB(240, 240, 240)
+                    hpTxt.TextStrokeTransparency = 0.5
                     hpTxt.TextSize = 8
                     hpTxt.Font = Enum.Font.GothamBold
                     hpTxt.Parent = hpBg
@@ -451,10 +609,10 @@ local function updatePlayerESP(player)
                 if not hl then
                     hl = Instance.new("Highlight")
                     hl.Name = "LethaESP_Highlight"
-                    hl.FillColor = Color3.fromRGB(0, 255, 120)
-                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    hl.FillTransparency = 0.75
-                    hl.OutlineTransparency = 0.3
+                    hl.FillColor = Color3.fromRGB(0, 180, 220)
+                    hl.OutlineColor = Color3.fromRGB(180, 220, 255)
+                    hl.FillTransparency = 0.88
+                    hl.OutlineTransparency = 0.65
                     hl.Parent = char
                 end
             else
@@ -466,28 +624,13 @@ local function updatePlayerESP(player)
     end
 end
 
--- HEARTBEAT / RENDER STEPPED KONTROLLERİ
-RunService.Heartbeat:Connect(function()
-    if LocalPlayer.Character then
-        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-
-        -- KARADAYKEN EN SON GÜVENLİ POZİSYONU KAYDET
-        if hum and hrp and hum.FloorMaterial ~= Enum.Material.Air and hum.Health > 0 then
-            lastSafeCFrame = hrp.CFrame
-        end
-
-        -- ANTI-VOID: BOŞLUĞA DÜŞERSE KARAYA GEL
-        if antiVoidActive and hrp and hrp.Position.Y < -30 then
-            if lastSafeCFrame then
-                hrp.CFrame = lastSafeCFrame + Vector3.new(0, 4, 0)
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            end
-        end
-    end
-end)
-
+-- RENDER STEPPED (DÖNGÜ)
 RunService.RenderStepped:Connect(function(delta)
+    -- FOV UYGULAMA
+    if isFovActive and workspace.CurrentCamera then
+        workspace.CurrentCamera.FieldOfView = currentFov
+    end
+
     if LocalPlayer.Character then
         local char = LocalPlayer.Character
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -514,7 +657,7 @@ RunService.RenderStepped:Connect(function(delta)
             humanoid.WalkSpeed = targetSpeed
         end
 
-        -- SKILL WALK (STUN KORUMALI)
+        -- SKILL WALK
         if skillWalkMode ~= "OFF" and humanoid and hrp and humanoid.Health > 0 then
             local isStunned = char:FindFirstChild("Stun") or char:FindFirstChild("Knockdown") or (humanoid:GetState() == Enum.HumanoidStateType.Physics)
             local isCasting = (humanoid.WalkSpeed <= 2) or char:FindFirstChild("Skill")
@@ -534,8 +677,8 @@ RunService.RenderStepped:Connect(function(delta)
                 if tHrp then
                     if hitboxActive then
                         tHrp.Size = Vector3.new(safeHitboxSize, safeHitboxSize, safeHitboxSize)
-                        tHrp.Transparency = 0.92
-                        tHrp.Color = Color3.fromRGB(0, 180, 255)
+                        tHrp.Transparency = 0.94
+                        tHrp.Color = Color3.fromRGB(0, 160, 220)
                         tHrp.Material = Enum.Material.SmoothPlastic
                         tHrp.CanCollide = false
                     else
