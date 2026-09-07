@@ -354,7 +354,7 @@ end
 local function loadSavedConfig()
     if readfile and isfile and isfile(configFileName) then
         local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(configFileName))
+            return HttpService:JSONEncode(readfile(configFileName))
         end)
         
         if success and data then
@@ -396,6 +396,18 @@ InfJumpUI.InputBegan:Connect(function(input)
     end
 end)
 
+-- HEDEF KONTROLÜ (CANLI VE OYUNDA MI?)
+local function isTargetValid(player)
+    if player and player.Parent and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hum and hrp and hum.Health > 0 then
+            return true
+        end
+    end
+    return false
+end
+
 -- 1) EN YAKIN HEDEFİ BULMA
 local function getClosestTarget()
     local nearest = nil
@@ -406,15 +418,12 @@ local function getClosestTarget()
     if not myHrp then return nil end
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local tHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if tHrp and tHum and tHum.Health > 0 then
-                local dist = (tHrp.Position - myHrp.Position).Magnitude
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    nearest = player
-                end
+        if player ~= LocalPlayer and isTargetValid(player) then
+            local tHrp = player.Character.HumanoidRootPart
+            local dist = (tHrp.Position - myHrp.Position).Magnitude
+            if dist < shortestDistance then
+                shortestDistance = dist
+                nearest = player
             end
         end
     end
@@ -427,14 +436,11 @@ local function getLowestHealthTarget()
     local lowestHealth = math.huge
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if player ~= LocalPlayer and isTargetValid(player) then
             local tHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if tHrp and tHum and tHum.Health > 0 then
-                if tHum.Health < lowestHealth then
-                    lowestHealth = tHum.Health
-                    lowestTarget = player
-                end
+            if tHum and tHum.Health < lowestHealth then
+                lowestHealth = tHum.Health
+                lowestTarget = player
             end
         end
     end
@@ -447,10 +453,12 @@ local function toggleCamlockLock()
     if camlockActive then
         if camlockHpActive then
             camlockHpActive = false
+            camlockHpTarget = nil
             LockHpUI.Text = "Lock (HP): OFF"
             LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
             LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
         end
+        camlockTarget = getClosestTarget() -- İlk kilit anında en yakın kişiyi sabitler
         LockUI.Text = "Lock (Dist): ON"
         LockUI.TextColor3 = Color3.fromRGB(0, 240, 255)
         LockStroke.Color = Color3.fromRGB(0, 240, 255)
@@ -467,10 +475,12 @@ local function toggleCamlockHpLock()
     if camlockHpActive then
         if camlockActive then
             camlockActive = false
+            camlockTarget = nil
             LockUI.Text = "Lock (Dist): OFF"
             LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-            LockStroke.Color = Color3.fromRGB(255, 60, 80)
+            LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
         end
+        camlockHpTarget = getLowestHealthTarget() -- İlk kilit anında en az canlı kişiyi sabitler
         LockHpUI.Text = "Lock (HP): ON"
         LockHpUI.TextColor3 = Color3.fromRGB(200, 50, 255)
         LockHpStroke.Color = Color3.fromRGB(200, 50, 255)
@@ -522,7 +532,7 @@ end)
 
 LockUI.Activated:Connect(function()
     if not isLockDragged() then
-        toggleCamlockLock()
+          toggleCamlockLock()
     end
 end)
 
@@ -538,6 +548,7 @@ ToggleBtn.Activated:Connect(function()
         MainFrame.Visible = isMenuOpen
     end
 end)
+
 ConfirmBtn.MouseButton1Click:Connect(function()
     local num = tonumber(SpeedBox.Text)
     if num then
@@ -677,10 +688,13 @@ RunService.RenderStepped:Connect(function(delta)
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
-        -- CAMLOCK 1: EN YAKIN RAKİP
+        -- CAMLOCK 1: EN YAKIN (SABİTLENMİŞ HEDEF)
         if camlockActive and camlockSystemEnabled then
-            camlockTarget = getClosestTarget()
-            if camlockTarget and camlockTarget.Character and camlockTarget.Character:FindFirstChild("HumanoidRootPart") then
+            if not isTargetValid(camlockTarget) then
+                camlockTarget = getClosestTarget() -- Mevcut hedef öldüyse yeni en yakın kişiyi bul
+            end
+
+            if isTargetValid(camlockTarget) then
                 local tHrp = camlockTarget.Character.HumanoidRootPart
                 local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
                 local cam = workspace.CurrentCamera
@@ -688,10 +702,14 @@ RunService.RenderStepped:Connect(function(delta)
                     cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos)
                 end
             end
-        -- CAMLOCK 2: EN AZ CANI OLAN RAKİP
+
+        -- CAMLOCK 2: EN AZ CANI OLAN (SABİTLENMİŞ HEDEF)
         elseif camlockHpActive and camlockHpSystemEnabled then
-            camlockHpTarget = getLowestHealthTarget()
-            if camlockHpTarget and camlockHpTarget.Character and camlockHpTarget.Character:FindFirstChild("HumanoidRootPart") then
+            if not isTargetValid(camlockHpTarget) then
+                camlockHpTarget = getLowestHealthTarget() -- Mevcut hedef öldüyse yeni en az canlı kişiyi bul
+            end
+
+            if isTargetValid(camlockHpTarget) then
                 local tHrp = camlockHpTarget.Character.HumanoidRootPart
                 local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
                 local cam = workspace.CurrentCamera
