@@ -7,33 +7,44 @@ local LocalPlayer = Players.LocalPlayer
 -- AYARLAR
 local targetSpeed = 16
 local isSpeedActive = false
+
+local targetJumpPower = 50
+local isJumpActive = false
+
 local skillWalkMode = "OFF"
 local hitboxActive = false
 local safeHitboxSize = 6.5
 local espActive = false
 local infJumpSystemEnabled = false
+local isCoordActive = false
 
--- CAMLOCK (EN YAKIN)
-local camlockSystemEnabled = false
-local camlockActive = false
-local camlockTarget = nil
+-- CAMLOCK SİSTEMLERİ
+local camlockDistEnabled = false
+local camlockDistActive = false
+local camlockDistTarget = nil
 
--- CAMLOCK (EN AZ CAN)
-local camlockHpSystemEnabled = false
+local camlockHpEnabled = false
 local camlockHpActive = false
 local camlockHpTarget = nil
 
--- KORDİNAT
-local isCoordActive = false
+local camlockHpTpEnabled = false
+local camlockHpTpActive = false
+local camlockHpTpTarget = nil
+
+-- TP & HOVER (SABİTLEME) SİSTEMİ
+local tpHoverEnabled = false
+local tpHoverActive = false
+local savedCFrame = nil
+local targetTpPos = Vector3.new(-31.2, 205.4, -131.9)
 
 local predictionAmount = 0.135
 local isMenuOpen = true
 
--- SONSUZ KAMERA UZAKLAŞTIRMA (ZOOM FIX)
+-- SONSUZ KAMERA UZAKLAŞTIRMA
 LocalPlayer.CameraMaxZoomDistance = 100000
 LocalPlayer.CameraMinZoomDistance = 0.5
 
--- DELTA / EXECUTOR UYUMLU PARENT TESPİTİ
+-- DELTA / EXECUTOR PARENT TESPİTİ
 local parentGui = LocalPlayer:WaitForChild("PlayerGui")
 if gethui then
     parentGui = gethui()
@@ -52,7 +63,7 @@ ScreenGui.DisplayOrder = 999999
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = parentGui
 
--- MOBİL SÜRÜKLEME SİSTEMİ
+-- MOBİL / PC SÜRÜKLEME FONKSİYONU
 local function makeDraggable(guiObject)
     local dragging, hasDragged, dragStart, startPos = false, false, nil, nil
     local dragInputObj = nil
@@ -86,10 +97,10 @@ local function makeDraggable(guiObject)
     return function() return hasDragged end
 end
 
--- VIP HUB TOGGLE BUTTON
+-- 1) VIP HUB AÇ/KAPAT BUTONU
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Name = "ToggleBtn"
-ToggleBtn.Size = UDim2.new(0, 52, 0, 52)
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0, 12, 0.3, 0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
 ToggleBtn.BackgroundTransparency = 0.15
@@ -97,63 +108,18 @@ ToggleBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 ToggleBtn.Text = "VIP"
 ToggleBtn.TextSize = 14
 ToggleBtn.Font = Enum.Font.Gotham
-ToggleBtn.AutoButtonColor = false
 ToggleBtn.Parent = ScreenGui
-
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
 ToggleStroke.Color = Color3.fromRGB(255, 215, 0)
 ToggleStroke.Thickness = 1.8
-
 local isToggleDragged = makeDraggable(ToggleBtn)
 
--- ÖZEL CAMLOCK (EN YAKIN) BUTONU
-local LockUI = Instance.new("TextButton")
-LockUI.Name = "CamlockUI"
-LockUI.Size = UDim2.new(0, 130, 0, 42)
-LockUI.Position = UDim2.new(0.5, -135, 0.75, 0)
-LockUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
-LockUI.BackgroundTransparency = 0.25
-LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-LockUI.Text = "Lock (Dist): OFF"
-LockUI.TextSize = 11
-LockUI.Font = Enum.Font.GothamBold
-LockUI.Visible = false
-LockUI.Parent = ScreenGui
-
-Instance.new("UICorner", LockUI).CornerRadius = UDim.new(0, 8)
-local LockStroke = Instance.new("UIStroke", LockUI)
-LockStroke.Color = Color3.fromRGB(255, 60, 80)
-LockStroke.Thickness = 1.6
-
-local isLockDragged = makeDraggable(LockUI)
-
--- ÖZEL CAMLOCK (EN AZ CAN) BUTONU
-local LockHpUI = Instance.new("TextButton")
-LockHpUI.Name = "CamlockHpUI"
-LockHpUI.Size = UDim2.new(0, 130, 0, 42)
-LockHpUI.Position = UDim2.new(0.5, 5, 0.75, 0)
-LockHpUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
-LockHpUI.BackgroundTransparency = 0.25
-LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-LockHpUI.Text = "Lock (HP): OFF"
-LockHpUI.TextSize = 11
-LockHpUI.Font = Enum.Font.GothamBold
-LockHpUI.Visible = false
-LockHpUI.Parent = ScreenGui
-
-Instance.new("UICorner", LockHpUI).CornerRadius = UDim.new(0, 8)
-local LockHpStroke = Instance.new("UIStroke", LockHpUI)
-LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
-LockHpStroke.Thickness = 1.6
-
-local isLockHpDragged = makeDraggable(LockHpUI)
-
--- CANLI KORDİNAT EKRAN KUTUSU
+-- 2) CANLI KORDİNAT KUTUSU
 local CoordUI = Instance.new("TextButton")
 CoordUI.Name = "CoordUI"
 CoordUI.Size = UDim2.new(0, 210, 0, 36)
-CoordUI.Position = UDim2.new(0.5, -105, 0.05, 0)
+CoordUI.Position = UDim2.new(0.5, -105, 0.04, 0)
 CoordUI.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
 CoordUI.BackgroundTransparency = 0.2
 CoordUI.TextColor3 = Color3.fromRGB(0, 240, 255)
@@ -162,15 +128,12 @@ CoordUI.TextSize = 11
 CoordUI.Font = Enum.Font.GothamBold
 CoordUI.Visible = false
 CoordUI.Parent = ScreenGui
-
 Instance.new("UICorner", CoordUI).CornerRadius = UDim.new(0, 8)
 local CoordStroke = Instance.new("UIStroke", CoordUI)
 CoordStroke.Color = Color3.fromRGB(0, 240, 255)
 CoordStroke.Thickness = 1.5
-
 local isCoordDragged = makeDraggable(CoordUI)
 
--- Kordinat Kutusu Tıklanınca Konumu Panoya Kopyalama Özelliği
 CoordUI.Activated:Connect(function()
     if not isCoordDragged() then
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -179,39 +142,111 @@ CoordUI.Activated:Connect(function()
             if setclipboard then
                 setclipboard(coordStr)
                 CoordUI.Text = "Kopyalandı! ✓"
-                task.delay(1.2, function() end)
             end
         end
     end
 end)
 
--- MOBİL JUMP BUTONU BOYUTUNDA INF JUMP (110x110)
+-- 3) INF JUMP BUTONU
 local InfJumpUI = Instance.new("TextButton")
 InfJumpUI.Name = "InfJumpUI"
-InfJumpUI.Size = UDim2.new(0, 110, 0, 110)
-InfJumpUI.Position = UDim2.new(0.78, 0, 0.48, 0)
+InfJumpUI.Size = UDim2.new(0, 100, 0, 100)
+InfJumpUI.Position = UDim2.new(0.8, 0, 0.45, 0)
 InfJumpUI.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 InfJumpUI.BackgroundTransparency = 0.45
 InfJumpUI.TextColor3 = Color3.fromRGB(255, 255, 255)
 InfJumpUI.Text = "▲"
-InfJumpUI.TextSize = 46
+InfJumpUI.TextSize = 42
 InfJumpUI.Font = Enum.Font.GothamBold
 InfJumpUI.Visible = false
 InfJumpUI.Parent = ScreenGui
-
 Instance.new("UICorner", InfJumpUI).CornerRadius = UDim.new(1, 0)
 local InfJumpStroke = Instance.new("UIStroke", InfJumpUI)
 InfJumpStroke.Color = Color3.fromRGB(255, 255, 255)
-InfJumpStroke.Transparency = 0.3
-InfJumpStroke.Thickness = 3.5
-
+InfJumpStroke.Thickness = 3
 local isInfJumpDragged = makeDraggable(InfJumpUI)
 
--- VIP ANA MENÜ
+-- 4) CAMLOCK (EN YAKIN) BUTONU
+local LockDistUI = Instance.new("TextButton")
+LockDistUI.Name = "LockDistUI"
+LockDistUI.Size = UDim2.new(0, 120, 0, 38)
+LockDistUI.Position = UDim2.new(0.5, -190, 0.78, 0)
+LockDistUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
+LockDistUI.BackgroundTransparency = 0.25
+LockDistUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+LockDistUI.Text = "Lock (Dist): OFF"
+LockDistUI.TextSize = 10
+LockDistUI.Font = Enum.Font.GothamBold
+LockDistUI.Visible = false
+LockDistUI.Parent = ScreenGui
+Instance.new("UICorner", LockDistUI).CornerRadius = UDim.new(0, 8)
+local LockDistStroke = Instance.new("UIStroke", LockDistUI)
+LockDistStroke.Color = Color3.fromRGB(255, 60, 80)
+LockDistStroke.Thickness = 1.5
+local isLockDistDragged = makeDraggable(LockDistUI)
+
+-- 5) CAMLOCK (EN AZ CAN) BUTONU
+local LockHpUI = Instance.new("TextButton")
+LockHpUI.Name = "LockHpUI"
+LockHpUI.Size = UDim2.new(0, 120, 0, 38)
+LockHpUI.Position = UDim2.new(0.5, -60, 0.78, 0)
+LockHpUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
+LockHpUI.BackgroundTransparency = 0.25
+LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+LockHpUI.Text = "Lock (HP): OFF"
+LockHpUI.TextSize = 10
+LockHpUI.Font = Enum.Font.GothamBold
+LockHpUI.Visible = false
+LockHpUI.Parent = ScreenGui
+Instance.new("UICorner", LockHpUI).CornerRadius = UDim.new(0, 8)
+local LockHpStroke = Instance.new("UIStroke", LockHpUI)
+LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
+LockHpStroke.Thickness = 1.5
+local isLockHpDragged = makeDraggable(LockHpUI)
+
+-- 6) CAMLOCK (EN AZ CAN + TP) BUTONU
+local LockHpTpUI = Instance.new("TextButton")
+LockHpTpUI.Name = "LockHpTpUI"
+LockHpTpUI.Size = UDim2.new(0, 120, 0, 38)
+LockHpTpUI.Position = UDim2.new(0.5, 70, 0.78, 0)
+LockHpTpUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
+LockHpTpUI.BackgroundTransparency = 0.25
+LockHpTpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+LockHpTpUI.Text = "Lock (HP+TP): OFF"
+LockHpTpUI.TextSize = 10
+LockHpTpUI.Font = Enum.Font.GothamBold
+LockHpTpUI.Visible = false
+LockHpTpUI.Parent = ScreenGui
+Instance.new("UICorner", LockHpTpUI).CornerRadius = UDim.new(0, 8)
+local LockHpTpStroke = Instance.new("UIStroke", LockHpTpUI)
+LockHpTpStroke.Color = Color3.fromRGB(255, 60, 80)
+LockHpTpStroke.Thickness = 1.5
+local isLockHpTpDragged = makeDraggable(LockHpTpUI)
+
+-- 7) TP & HOVER (SABİTLEME) BUTONU
+local TpHoverUI = Instance.new("TextButton")
+TpHoverUI.Name = "TpHoverUI"
+TpHoverUI.Size = UDim2.new(0, 130, 0, 42)
+TpHoverUI.Position = UDim2.new(0.5, -65, 0.70, 0)
+TpHoverUI.BackgroundColor3 = Color3.fromRGB(16, 14, 24)
+TpHoverUI.BackgroundTransparency = 0.2
+TpHoverUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+TpHoverUI.Text = "TP & Hover: OFF"
+TpHoverUI.TextSize = 11
+TpHoverUI.Font = Enum.Font.GothamBold
+TpHoverUI.Visible = false
+TpHoverUI.Parent = ScreenGui
+Instance.new("UICorner", TpHoverUI).CornerRadius = UDim.new(0, 8)
+local TpHoverStroke = Instance.new("UIStroke", TpHoverUI)
+TpHoverStroke.Color = Color3.fromRGB(255, 60, 80)
+TpHoverStroke.Thickness = 1.6
+local isTpHoverDragged = makeDraggable(TpHoverUI)
+
+-- ANA MENÜ ÇERÇEVESİ
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 460)
-MainFrame.Position = UDim2.new(0.5, -120, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 250, 0, 460)
+MainFrame.Position = UDim2.new(0.5, -125, 0.12, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 22)
 MainFrame.BackgroundTransparency = 0.08
 MainFrame.Active = true
@@ -219,22 +254,13 @@ MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
-
-local MainGradient = Instance.new("UIGradient", MainFrame)
-MainGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 20, 38)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 16))
-})
-MainGradient.Rotation = 45
-
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(255, 190, 40)
 MainStroke.Thickness = 1.8
-
 makeDraggable(MainFrame)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 32)
+Title.Size = UDim2.new(1, 0, 0, 36)
 Title.BackgroundTransparency = 1
 Title.Text = "👑 LETHA HUB VIP 👑"
 Title.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -242,207 +268,155 @@ Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
-local function createVipButton(name, text, pos, bgCol)
+-- KAYDIRILABİLİR İÇ İÇE İÇERİK (SCROLLING FRAME)
+local ScrollContainer = Instance.new("ScrollingFrame")
+ScrollContainer.Size = UDim2.new(1, -12, 1, -44)
+ScrollContainer.Position = UDim2.new(0, 6, 0, 38)
+ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.ScrollBarThickness = 4
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 190, 40)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 520)
+ScrollContainer.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIList.Padding = UDim.new(0, 6)
+UIList.Parent = ScrollContainer
+
+local function createMenuButton(name, text)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Size = UDim2.new(0.86, 0, 0, 26)
-    btn.Position = pos
-    btn.BackgroundColor3 = bgCol
+    btn.Size = UDim2.new(0.92, 0, 0, 28)
+    btn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
     btn.TextSize = 10
     btn.Font = Enum.Font.GothamBold
-    btn.Parent = MainFrame
+    btn.Parent = ScrollContainer
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     
     local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(255, 255, 255)
     stroke.Transparency = 0.85
-    stroke.Thickness = 1
     return btn
 end
 
--- SPEED KONTROLLERİ
+-- 1. SPEED
 local SpeedBox = Instance.new("TextBox")
-SpeedBox.Size = UDim2.new(0.86, 0, 0, 26)
-SpeedBox.Position = UDim2.new(0.07, 0, 0.08, 0)
+SpeedBox.Size = UDim2.new(0.92, 0, 0, 26)
 SpeedBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
 SpeedBox.TextColor3 = Color3.fromRGB(0, 240, 255)
-SpeedBox.PlaceholderText = "Hız Değeri..."
+SpeedBox.PlaceholderText = "Hız Değeri (Speed)..."
 SpeedBox.Text = ""
 SpeedBox.TextSize = 10
 SpeedBox.Font = Enum.Font.GothamMedium
-SpeedBox.Parent = MainFrame
+SpeedBox.Parent = ScrollContainer
 Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 6)
 
-local ConfirmBtn = Instance.new("TextButton")
-ConfirmBtn.Size = UDim2.new(0.41, 0, 0, 26)
-ConfirmBtn.Position = UDim2.new(0.07, 0, 0.15, 0)
-ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
-ConfirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ConfirmBtn.Text = "Hızı Ayarla"
-ConfirmBtn.TextSize = 10
-ConfirmBtn.Font = Enum.Font.GothamBold
-ConfirmBtn.Parent = MainFrame
-Instance.new("UICorner", ConfirmBtn).CornerRadius = UDim.new(0, 6)
+local SpeedRow = Instance.new("Frame")
+SpeedRow.Size = UDim2.new(0.92, 0, 0, 26)
+SpeedRow.BackgroundTransparency = 1
+SpeedRow.Parent = ScrollContainer
+
+local ConfirmSpeedBtn = Instance.new("TextButton")
+ConfirmSpeedBtn.Size = UDim2.new(0.48, 0, 1, 0)
+ConfirmSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
+ConfirmSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmSpeedBtn.Text = "Hızı Ayarla"
+ConfirmSpeedBtn.TextSize = 10
+ConfirmSpeedBtn.Font = Enum.Font.GothamBold
+ConfirmSpeedBtn.Parent = SpeedRow
+Instance.new("UICorner", ConfirmSpeedBtn).CornerRadius = UDim.new(0, 6)
 
 local ResetSpeedBtn = Instance.new("TextButton")
-ResetSpeedBtn.Size = UDim2.new(0.42, 0, 0, 26)
-ResetSpeedBtn.Position = UDim2.new(0.51, 0, 0.15, 0)
+ResetSpeedBtn.Size = UDim2.new(0.48, 0, 1, 0)
+ResetSpeedBtn.Position = UDim2.new(0.52, 0, 0, 0)
 ResetSpeedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 ResetSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetSpeedBtn.Text = "Hızı Sıfırla"
 ResetSpeedBtn.TextSize = 10
 ResetSpeedBtn.Font = Enum.Font.GothamBold
-ResetSpeedBtn.Parent = MainFrame
+ResetSpeedBtn.Parent = SpeedRow
 Instance.new("UICorner", ResetSpeedBtn).CornerRadius = UDim.new(0, 6)
 
--- MENÜ BUTONLARI
-local CamlockMenuBtn = createVipButton("CamlockMenuBtn", "Camlock (Yakın): KAPALI", UDim2.new(0.07, 0, 0.22, 0), Color3.fromRGB(150, 30, 45))
-local CamlockHpMenuBtn = createVipButton("CamlockHpMenuBtn", "Camlock (En Az Can): KAPALI", UDim2.new(0.07, 0, 0.29, 0), Color3.fromRGB(150, 30, 45))
-local BypassBtn = createVipButton("BypassBtn", "Skill Walk: OFF", UDim2.new(0.07, 0, 0.36, 0), Color3.fromRGB(150, 30, 45))
-local InfJumpMenuBtn = createVipButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF", UDim2.new(0.07, 0, 0.43, 0), Color3.fromRGB(150, 30, 45))
-local HitboxBtn = createVipButton("HitboxBtn", "Safe Hitbox (6.5): OFF", UDim2.new(0.07, 0, 0.50, 0), Color3.fromRGB(150, 30, 45))
-local EspBtn = createVipButton("EspBtn", "Player ESP: OFF", UDim2.new(0.07, 0, 0.57, 0), Color3.fromRGB(150, 30, 45))
-local CoordBtn = createVipButton("CoordBtn", "Kordinat Göster: OFF", UDim2.new(0.07, 0, 0.64, 0), Color3.fromRGB(150, 30, 45))
+-- 2. JUMP POWER
+local JumpBox = Instance.new("TextBox")
+JumpBox.Size = UDim2.new(0.92, 0, 0, 26)
+JumpBox.BackgroundColor3 = Color3.fromRGB(24, 20, 35)
+JumpBox.TextColor3 = Color3.fromRGB(255, 180, 0)
+JumpBox.PlaceholderText = "Zıplama Gücü (Jump)..."
+JumpBox.Text = ""
+JumpBox.TextSize = 10
+JumpBox.Font = Enum.Font.GothamMedium
+JumpBox.Parent = ScrollContainer
+Instance.new("UICorner", JumpBox).CornerRadius = UDim.new(0, 6)
 
--- CONFIG (KAYDET & YÜKLE) BUTONLARI
+local JumpRow = Instance.new("Frame")
+JumpRow.Size = UDim2.new(0.92, 0, 0, 26)
+JumpRow.BackgroundTransparency = 1
+JumpRow.Parent = ScrollContainer
+
+local ConfirmJumpBtn = Instance.new("TextButton")
+ConfirmJumpBtn.Size = UDim2.new(0.48, 0, 1, 0)
+ConfirmJumpBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
+ConfirmJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmJumpBtn.Text = "Zıplamayı Ayarla"
+ConfirmJumpBtn.TextSize = 10
+ConfirmJumpBtn.Font = Enum.Font.GothamBold
+ConfirmJumpBtn.Parent = JumpRow
+Instance.new("UICorner", ConfirmJumpBtn).CornerRadius = UDim.new(0, 6)
+
+local ResetJumpBtn = Instance.new("TextButton")
+ResetJumpBtn.Size = UDim2.new(0.48, 0, 1, 0)
+ResetJumpBtn.Position = UDim2.new(0.52, 0, 0, 0)
+ResetJumpBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
+ResetJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ResetJumpBtn.Text = "Zıplamayı Sıfırla"
+ResetJumpBtn.TextSize = 10
+ResetJumpBtn.Font = Enum.Font.GothamBold
+ResetJumpBtn.Parent = JumpRow
+Instance.new("UICorner", ResetJumpBtn).CornerRadius = UDim.new(0, 6)
+
+-- DİĞER BUTONLAR
+local CamlockDistMenuBtn = createMenuButton("CamlockDistMenuBtn", "Camlock (Yakın): KAPALI")
+local CamlockHpMenuBtn = createMenuButton("CamlockHpMenuBtn", "Camlock (HP): KAPALI")
+local CamlockHpTpMenuBtn = createMenuButton("CamlockHpTpMenuBtn", "Camlock (HP + TP): KAPALI")
+local TpHoverMenuBtn = createMenuButton("TpHoverMenuBtn", "TP & Hover (-31, 205, -131): OFF")
+local SkillWalkBtn = createMenuButton("SkillWalkBtn", "Skill Walk: OFF")
+local InfJumpMenuBtn = createMenuButton("InfJumpMenuBtn", "Inf Jump (Spam): OFF")
+local HitboxBtn = createMenuButton("HitboxBtn", "Safe Hitbox (6.5): OFF")
+local EspBtn = createMenuButton("EspBtn", "Player ESP: OFF")
+local CoordBtn = createMenuButton("CoordBtn", "Kordinat Göster: OFF")
+
+-- CONFIG ROW
+local ConfigRow = Instance.new("Frame")
+ConfigRow.Size = UDim2.new(0.92, 0, 0, 28)
+ConfigRow.BackgroundTransparency = 1
+ConfigRow.Parent = ScrollContainer
+
 local SaveConfigBtn = Instance.new("TextButton")
-SaveConfigBtn.Size = UDim2.new(0.41, 0, 0, 28)
-SaveConfigBtn.Position = UDim2.new(0.07, 0, 0.90, 0)
+SaveConfigBtn.Size = UDim2.new(0.48, 0, 1, 0)
 SaveConfigBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 90)
 SaveConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveConfigBtn.Text = "Kaydet 💾"
 SaveConfigBtn.TextSize = 10
 SaveConfigBtn.Font = Enum.Font.GothamBold
-SaveConfigBtn.Parent = MainFrame
+SaveConfigBtn.Parent = ConfigRow
 Instance.new("UICorner", SaveConfigBtn).CornerRadius = UDim.new(0, 6)
 
 local LoadConfigBtn = Instance.new("TextButton")
-LoadConfigBtn.Size = UDim2.new(0.42, 0, 0, 28)
-LoadConfigBtn.Position = UDim2.new(0.51, 0, 0.90, 0)
+LoadConfigBtn.Size = UDim2.new(0.48, 0, 1, 0)
+LoadConfigBtn.Position = UDim2.new(0.52, 0, 0, 0)
 LoadConfigBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
 LoadConfigBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoadConfigBtn.Text = "Yükle 📂"
 LoadConfigBtn.TextSize = 10
 LoadConfigBtn.Font = Enum.Font.GothamBold
-LoadConfigBtn.Parent = MainFrame
+LoadConfigBtn.Parent = ConfigRow
 Instance.new("UICorner", LoadConfigBtn).CornerRadius = UDim.new(0, 6)
 
--- CONFIG SİSTEMİ MANTIĞI
-local configFileName = "LethaHub_VIP_Config.json"
-
-local function saveCurrentConfig()
-    local configData = {
-        targetSpeed = targetSpeed,
-        isSpeedActive = isSpeedActive,
-        skillWalkMode = skillWalkMode,
-        hitboxActive = hitboxActive,
-        safeHitboxSize = safeHitboxSize,
-        espActive = espActive,
-        infJumpSystemEnabled = infJumpSystemEnabled,
-        camlockSystemEnabled = camlockSystemEnabled,
-        camlockHpSystemEnabled = camlockHpSystemEnabled,
-        isCoordActive = isCoordActive
-    }
-    
-    if writefile then
-        writefile(configFileName, HttpService:JSONEncode(configData))
-        SaveConfigBtn.Text = "Kaydedildi! ✓"
-        task.delay(1.5, function() SaveConfigBtn.Text = "Kaydet 💾" end)
-    end
-end
-
-local function applyLoadedUIState()
-    if isSpeedActive then
-        ConfirmBtn.Text = "Aktif: " .. tostring(targetSpeed)
-        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    else
-        ConfirmBtn.Text = "Hızı Ayarla"
-        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
-    end
-
-    LockUI.Visible = camlockSystemEnabled
-    CamlockMenuBtn.Text = camlockSystemEnabled and "Camlock (Yakın): AÇIK" or "Camlock (Yakın): KAPALI"
-    CamlockMenuBtn.BackgroundColor3 = camlockSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-
-    LockHpUI.Visible = camlockHpSystemEnabled
-    CamlockHpMenuBtn.Text = camlockHpSystemEnabled and "Camlock (En Az Can): AÇIK" or "Camlock (En Az Can): KAPALI"
-    CamlockHpMenuBtn.BackgroundColor3 = camlockHpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-
-    CoordUI.Visible = isCoordActive
-    CoordBtn.Text = isCoordActive and "Kordinat Göster: ON" or "Kordinat Göster: OFF"
-    CoordBtn.BackgroundColor3 = isCoordActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-
-    if skillWalkMode == "AUTO" then
-        BypassBtn.Text = "Skill Walk: AUTO"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    elseif skillWalkMode == "ALWAYS" then
-        BypassBtn.Text = "Skill Walk: ALWAYS"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
-    else
-        BypassBtn.Text = "Skill Walk: OFF"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
-    end
-
-    InfJumpUI.Visible = infJumpSystemEnabled
-    InfJumpMenuBtn.Text = infJumpSystemEnabled and "Inf Jump (Spam): ON" or "Inf Jump (Spam): OFF"
-    InfJumpMenuBtn.BackgroundColor3 = infJumpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-
-    HitboxBtn.Text = hitboxActive and "Safe Hitbox (6.5): ON" or "Safe Hitbox (6.5): OFF"
-    HitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-
-    EspBtn.Text = espActive and "Player ESP: ON" or "Player ESP: OFF"
-    EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
-end
-
-local function loadSavedConfig()
-    if readfile and isfile and isfile(configFileName) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(configFileName))
-        end)
-        
-        if success and data then
-            targetSpeed = data.targetSpeed or 16
-            isSpeedActive = data.isSpeedActive or false
-            skillWalkMode = data.skillWalkMode or "OFF"
-            hitboxActive = data.hitboxActive or false
-            safeHitboxSize = data.safeHitboxSize or 6.5
-            espActive = data.espActive or false
-            infJumpSystemEnabled = data.infJumpSystemEnabled or false
-            camlockSystemEnabled = data.camlockSystemEnabled or false
-            camlockHpSystemEnabled = data.camlockHpSystemEnabled or false
-            isCoordActive = data.isCoordActive or false
-
-            applyLoadedUIState()
-            LoadConfigBtn.Text = "Yüklendi! ✓"
-            task.delay(1.5, function() LoadConfigBtn.Text = "Yükle 📂" end)
-        end
-    end
-end
-
-SaveConfigBtn.MouseButton1Click:Connect(saveCurrentConfig)
-LoadConfigBtn.MouseButton1Click:Connect(loadSavedConfig)
-
--- ZIPLAMA MANTIĞI
-local function executeSpamJump()
-    if LocalPlayer.Character then
-        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hrp and hum and hum.Health > 0 then
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 52, hrp.AssemblyLinearVelocity.Z)
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end
-
-InfJumpUI.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not isInfJumpDragged() then
-        executeSpamJump()
-    end
-end)
-
--- HEDEF KONTROLÜ (CANLI VE OYUNDA MI?)
+-- HEDEF KONTROLÜ
 local function isTargetValid(player)
     if player and player.Parent and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -454,21 +428,17 @@ local function isTargetValid(player)
     return false
 end
 
--- 1) EN YAKIN HEDEFİ BULMA
 local function getClosestTarget()
-    local nearest = nil
-    local shortestDistance = math.huge
+    local nearest, shortestDist = nil, math.huge
     local myChar = LocalPlayer.Character
-    if not myChar then return nil end
-    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return nil end
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myHrp = myChar.HumanoidRootPart
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isTargetValid(player) then
-            local tHrp = player.Character.HumanoidRootPart
-            local dist = (tHrp.Position - myHrp.Position).Magnitude
-            if dist < shortestDistance then
-                shortestDistance = dist
+            local dist = (player.Character.HumanoidRootPart.Position - myHrp.Position).Magnitude
+            if dist < shortestDist then
+                shortestDist = dist
                 nearest = player
             end
         end
@@ -476,16 +446,13 @@ local function getClosestTarget()
     return nearest
 end
 
--- 2) CANI EN DÜŞÜK HEDEFİ BULMA
 local function getLowestHealthTarget()
-    local lowestTarget = nil
-    local lowestHealth = math.huge
-
+    local lowestTarget, lowestHp = nil, math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isTargetValid(player) then
-            local tHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if tHum and tHum.Health < lowestHealth then
-                lowestHealth = tHum.Health
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health < lowestHp then
+                lowestHp = hum.Health
                 lowestTarget = player
             end
         end
@@ -493,116 +460,139 @@ local function getLowestHealthTarget()
     return lowestTarget
 end
 
--- TOGGLE CAMLOCKS
-local function toggleCamlockLock()
-    camlockActive = not camlockActive
-    if camlockActive then
-        if camlockHpActive then
-            camlockHpActive = false
-            camlockHpTarget = nil
-            LockHpUI.Text = "Lock (HP): OFF"
-            LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-            LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
+-- TOGGLE MANTIKLARI
+local function resetAllCamlocks()
+    camlockDistActive = false; camlockDistTarget = nil
+    LockDistUI.Text = "Lock (Dist): OFF"
+    LockDistUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+    LockDistStroke.Color = Color3.fromRGB(255, 60, 80)
+
+    camlockHpActive = false; camlockHpTarget = nil
+    LockHpUI.Text = "Lock (HP): OFF"
+    LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+    LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
+
+    camlockHpTpActive = false; camlockHpTpTarget = nil
+    LockHpTpUI.Text = "Lock (HP+TP): OFF"
+    LockHpTpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+    LockHpTpStroke.Color = Color3.fromRGB(255, 60, 80)
+end
+
+-- TP & HOVER TOGGLE
+local function toggleTpHover()
+    tpHoverActive = not tpHoverActive
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    if tpHoverActive then
+        if hrp then
+            savedCFrame = hrp.CFrame
+            hrp.CFrame = CFrame.new(targetTpPos)
+            hrp.Anchored = true
         end
-        camlockTarget = getClosestTarget()
-        LockUI.Text = "Lock (Dist): ON"
-        LockUI.TextColor3 = Color3.fromRGB(0, 240, 255)
-        LockStroke.Color = Color3.fromRGB(0, 240, 255)
+        TpHoverUI.Text = "TP & Hover: ON"
+        TpHoverUI.TextColor3 = Color3.fromRGB(0, 240, 255)
+        TpHoverStroke.Color = Color3.fromRGB(0, 240, 255)
     else
-        camlockTarget = nil
-        LockUI.Text = "Lock (Dist): OFF"
-        LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-        LockStroke.Color = Color3.fromRGB(255, 60, 80)
+        if hrp then
+            hrp.Anchored = false
+            if savedCFrame then
+                hrp.CFrame = savedCFrame
+            end
+        end
+        TpHoverUI.Text = "TP & Hover: OFF"
+        TpHoverUI.TextColor3 = Color3.fromRGB(255, 60, 80)
+        TpHoverStroke.Color = Color3.fromRGB(255, 60, 80)
     end
 end
 
-local function toggleCamlockHpLock()
-    camlockHpActive = not camlockHpActive
-    if camlockHpActive then
-        if camlockActive then
-            camlockActive = false
-            camlockTarget = nil
-            LockUI.Text = "Lock (Dist): OFF"
-            LockUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-            LockStroke.Color = Color3.fromRGB(255, 60, 80)
+TpHoverUI.Activated:Connect(function()
+    if not isTpHoverDragged() then toggleTpHover() end
+end)
+
+LockDistUI.Activated:Connect(function()
+    if not isLockDistDragged() then
+        camlockDistActive = not camlockDistActive
+        if camlockDistActive then
+            resetAllCamlocks()
+            camlockDistActive = true
+            camlockDistTarget = getClosestTarget()
+            LockDistUI.Text = "Lock (Dist): ON"
+            LockDistUI.TextColor3 = Color3.fromRGB(0, 240, 255)
+            LockDistStroke.Color = Color3.fromRGB(0, 240, 255)
         end
-        camlockHpTarget = getLowestHealthTarget()
-        LockHpUI.Text = "Lock (HP): ON"
-        LockHpUI.TextColor3 = Color3.fromRGB(200, 50, 255)
-        LockHpStroke.Color = Color3.fromRGB(200, 50, 255)
-    else
-        camlockHpTarget = nil
-        LockHpUI.Text = "Lock (HP): ON"
-        LockHpUI.TextColor3 = Color3.fromRGB(200, 50, 255)
-        LockHpStroke.Color = Color3.fromRGB(200, 50, 255)
-    else
-        camlockHpTarget = nil
-        LockHpUI.Text = "Lock (HP): OFF"
-        LockHpUI.TextColor3 = Color3.fromRGB(255, 60, 80)
-        LockHpStroke.Color = Color3.fromRGB(255, 60, 80)
-    end
-end
-
-CamlockMenuBtn.MouseButton1Click:Connect(function()
-    camlockSystemEnabled = not camlockSystemEnabled
-    LockUI.Visible = camlockSystemEnabled
-    if camlockSystemEnabled then
-        CamlockMenuBtn.Text = "Camlock (Yakın): AÇIK"
-        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    else
-        CamlockMenuBtn.Text = "Camlock (Yakın): KAPALI"
-        CamlockMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
-        if camlockActive then toggleCamlockLock() end
-    end
-end)
-
-CamlockHpMenuBtn.MouseButton1Click:Connect(function()
-    camlockHpSystemEnabled = not camlockHpSystemEnabled
-    LockHpUI.Visible = camlockHpSystemEnabled
-    if camlockHpSystemEnabled then
-        CamlockHpMenuBtn.Text = "Camlock (En Az Can): AÇIK"
-        CamlockHpMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    else
-        CamlockHpMenuBtn.Text = "Camlock (En Az Can): KAPALI"
-        CamlockHpMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
-        if camlockHpActive then toggleCamlockHpLock() end
-    end
-end)
-
-CoordBtn.MouseButton1Click:Connect(function()
-    isCoordActive = not isCoordActive
-    CoordUI.Visible = isCoordActive
-    if isCoordActive then
-        CoordBtn.Text = "Kordinat Göster: ON"
-        CoordBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    else
-        CoordBtn.Text = "Kordinat Göster: OFF"
-        CoordBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
-    end
-end)
-
-InfJumpMenuBtn.MouseButton1Click:Connect(function()
-    infJumpSystemEnabled = not infJumpSystemEnabled
-    InfJumpUI.Visible = infJumpSystemEnabled
-    if infJumpSystemEnabled then
-        InfJumpMenuBtn.Text = "Inf Jump (Spam): ON"
-        InfJumpMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
-    else
-        InfJumpMenuBtn.Text = "Inf Jump (Spam): OFF"
-        InfJumpMenuBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
-    end
-end)
-
-LockUI.Activated:Connect(function()
-    if not isLockDragged() then
-        toggleCamlockLock()
     end
 end)
 
 LockHpUI.Activated:Connect(function()
     if not isLockHpDragged() then
-        toggleCamlockHpLock()
+        camlockHpActive = not camlockHpActive
+        if camlockHpActive then
+            resetAllCamlocks()
+            camlockHpActive = true
+            camlockHpTarget = getLowestHealthTarget()
+            LockHpUI.Text = "Lock (HP): ON"
+            LockHpUI.TextColor3 = Color3.fromRGB(200, 50, 255)
+            LockHpStroke.Color = Color3.fromRGB(200, 50, 255)
+        end
     end
+end)
+
+LockHpTpUI.Activated:Connect(function()
+    if not isLockHpTpDragged() then
+        camlockHpTpActive = not camlockHpTpActive
+        if camlockHpTpActive then
+            resetAllCamlocks()
+            camlockHpTpActive = true
+            camlockHpTpTarget = getLowestHealthTarget()
+            LockHpTpUI.Text = "Lock (HP+TP): ON"
+            LockHpTpUI.TextColor3 = Color3.fromRGB(255, 180, 0)
+            LockHpTpStroke.Color = Color3.fromRGB(255, 180, 0)
+        end
+    end
+end)
+
+-- MENÜ BUTON ETKİLEŞİMLERİ
+CamlockDistMenuBtn.MouseButton1Click:Connect(function()
+    camlockDistEnabled = not camlockDistEnabled
+    LockDistUI.Visible = camlockDistEnabled
+    CamlockDistMenuBtn.Text = camlockDistEnabled and "Camlock (Yakın): AÇIK" or "Camlock (Yakın): KAPALI"
+    CamlockDistMenuBtn.BackgroundColor3 = camlockDistEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+CamlockHpMenuBtn.MouseButton1Click:Connect(function()
+    camlockHpEnabled = not camlockHpEnabled
+    LockHpUI.Visible = camlockHpEnabled
+    CamlockHpMenuBtn.Text = camlockHpEnabled and "Camlock (HP): AÇIK" or "Camlock (HP): KAPALI"
+    CamlockHpMenuBtn.BackgroundColor3 = camlockHpEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+CamlockHpTpMenuBtn.MouseButton1Click:Connect(function()
+    camlockHpTpEnabled = not camlockHpTpEnabled
+    LockHpTpUI.Visible = camlockHpTpEnabled
+    CamlockHpTpMenuBtn.Text = camlockHpTpEnabled and "Camlock (HP + TP): AÇIK" or "Camlock (HP + TP): KAPALI"
+    CamlockHpTpMenuBtn.BackgroundColor3 = camlockHpTpEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+TpHoverMenuBtn.MouseButton1Click:Connect(function()
+    tpHoverEnabled = not tpHoverEnabled
+    TpHoverUI.Visible = tpHoverEnabled
+    TpHoverMenuBtn.Text = tpHoverEnabled and "TP & Hover: ON" or "TP & Hover: OFF"
+    TpHoverMenuBtn.BackgroundColor3 = tpHoverEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+CoordBtn.MouseButton1Click:Connect(function()
+    isCoordActive = not isCoordActive
+    CoordUI.Visible = isCoordActive
+    CoordBtn.Text = isCoordActive and "Kordinat Göster: ON" or "Kordinat Göster: OFF"
+    CoordBtn.BackgroundColor3 = isCoordActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+InfJumpMenuBtn.MouseButton1Click:Connect(function()
+    infJumpSystemEnabled = not infJumpSystemEnabled
+    InfJumpUI.Visible = infJumpSystemEnabled
+    InfJumpMenuBtn.Text = infJumpSystemEnabled and "Inf Jump (Spam): ON" or "Inf Jump (Spam): OFF"
+    InfJumpMenuBtn.BackgroundColor3 = infJumpSystemEnabled and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
 end)
 
 ToggleBtn.Activated:Connect(function()
@@ -612,13 +602,14 @@ ToggleBtn.Activated:Connect(function()
     end
 end)
 
-ConfirmBtn.MouseButton1Click:Connect(function()
+-- SPEED & JUMP BUTONLARI
+ConfirmSpeedBtn.MouseButton1Click:Connect(function()
     local num = tonumber(SpeedBox.Text)
     if num then
         targetSpeed = num
         isSpeedActive = true
-        ConfirmBtn.Text = "Aktif: " .. tostring(targetSpeed)
-        ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+        ConfirmSpeedBtn.Text = "Aktif: " .. tostring(targetSpeed)
+        ConfirmSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
     end
 end)
 
@@ -628,23 +619,45 @@ ResetSpeedBtn.MouseButton1Click:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
     end
-    ConfirmBtn.Text = "Hızı Ayarla"
-    ConfirmBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
+    ConfirmSpeedBtn.Text = "Hızı Ayarla"
+    ConfirmSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
 end)
 
-BypassBtn.MouseButton1Click:Connect(function()
+ConfirmJumpBtn.MouseButton1Click:Connect(function()
+    local num = tonumber(JumpBox.Text)
+    if num then
+        targetJumpPower = num
+        isJumpActive = true
+        ConfirmJumpBtn.Text = "Aktif: " .. tostring(targetJumpPower)
+        ConfirmJumpBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+    end
+end)
+
+ResetJumpBtn.MouseButton1Click:Connect(function()
+    isJumpActive = false
+    targetJumpPower = 50
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        hum.JumpPower = 50
+        hum.UseJumpPower = true
+    end
+    ConfirmJumpBtn.Text = "Zıplamayı Ayarla"
+    ConfirmJumpBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
+end)
+
+SkillWalkBtn.MouseButton1Click:Connect(function()
     if skillWalkMode == "OFF" then
         skillWalkMode = "AUTO"
-        BypassBtn.Text = "Skill Walk: AUTO"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
+        SkillWalkBtn.Text = "Skill Walk: AUTO"
+        SkillWalkBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 85)
     elseif skillWalkMode == "AUTO" then
         skillWalkMode = "ALWAYS"
-        BypassBtn.Text = "Skill Walk: ALWAYS"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
+        SkillWalkBtn.Text = "Skill Walk: ALWAYS"
+        SkillWalkBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 230)
     else
         skillWalkMode = "OFF"
-        BypassBtn.Text = "Skill Walk: OFF"
-        BypassBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
+        SkillWalkBtn.Text = "Skill Walk: OFF"
+        SkillWalkBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 45)
     end
 end)
 
@@ -658,6 +671,78 @@ EspBtn.MouseButton1Click:Connect(function()
     espActive = not espActive
     EspBtn.Text = espActive and "Player ESP: ON" or "Player ESP: OFF"
     EspBtn.BackgroundColor3 = espActive and Color3.fromRGB(0, 150, 85) or Color3.fromRGB(150, 30, 45)
+end)
+
+-- CONFIG SİSTEMİ
+local configFileName = "LethaHub_VIP_Config.json"
+
+SaveConfigBtn.MouseButton1Click:Connect(function()
+    local configData = {
+        targetSpeed = targetSpeed, isSpeedActive = isSpeedActive,
+        targetJumpPower = targetJumpPower, isJumpActive = isJumpActive,
+        skillWalkMode = skillWalkMode, hitboxActive = hitboxActive,
+        safeHitboxSize = safeHitboxSize, espActive = espActive,
+        infJumpSystemEnabled = infJumpSystemEnabled,
+        camlockDistEnabled = camlockDistEnabled,
+        camlockHpEnabled = camlockHpEnabled,
+        camlockHpTpEnabled = camlockHpTpEnabled,
+        tpHoverEnabled = tpHoverEnabled,
+        isCoordActive = isCoordActive
+    }
+    if writefile then
+        writefile(configFileName, HttpService:JSONEncode(configData))
+        SaveConfigBtn.Text = "Kaydedildi! ✓"
+        task.delay(1.5, function() SaveConfigBtn.Text = "Kaydet 💾" end)
+    end
+end)
+
+LoadConfigBtn.MouseButton1Click:Connect(function()
+    if readfile and isfile and isfile(configFileName) then
+        local success, data = pcall(function() return HttpService:JSONEncode(readfile(configFileName)) end)
+        if success and data then
+            targetSpeed = data.targetSpeed or 16
+            isSpeedActive = data.isSpeedActive or false
+            targetJumpPower = data.targetJumpPower or 50
+            isJumpActive = data.isJumpActive or false
+            skillWalkMode = data.skillWalkMode or "OFF"
+            hitboxActive = data.hitboxActive or false
+            espActive = data.espActive or false
+            infJumpSystemEnabled = data.infJumpSystemEnabled or false
+            camlockDistEnabled = data.camlockDistEnabled or false
+            camlockHpEnabled = data.camlockHpEnabled or false
+            camlockHpTpEnabled = data.camlockHpTpEnabled or false
+            tpHoverEnabled = data.tpHoverEnabled or false
+            isCoordActive = data.isCoordActive or false
+
+            LockDistUI.Visible = camlockDistEnabled
+            LockHpUI.Visible = camlockHpEnabled
+            LockHpTpUI.Visible = camlockHpTpEnabled
+            TpHoverUI.Visible = tpHoverEnabled
+            CoordUI.Visible = isCoordActive
+            InfJumpUI.Visible = infJumpSystemEnabled
+
+            LoadConfigBtn.Text = "Yüklendi! ✓"
+            task.delay(1.5, function() LoadConfigBtn.Text = "Yükle 📂" end)
+        end
+    end
+end)
+
+-- ZIPLAMA SPAM
+local function executeSpamJump()
+    if LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hrp and hum and hum.Health > 0 then
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, targetJumpPower or 52, hrp.AssemblyLinearVelocity.Z)
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end
+
+InfJumpUI.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not isInfJumpDragged() then
+        executeSpamJump()
+    end
 end)
 
 -- ESP FONKSİYONU
@@ -683,8 +768,6 @@ local function updatePlayerESP(player)
                     nameTxt.Size = UDim2.new(1, 0, 0, 16)
                     nameTxt.BackgroundTransparency = 1
                     nameTxt.TextColor3 = Color3.fromRGB(220, 220, 230)
-                    nameTxt.TextTransparency = 0.15
-                    nameTxt.TextStrokeTransparency = 0.6
                     nameTxt.TextSize = 10
                     nameTxt.Font = Enum.Font.GothamBold
                     nameTxt.Parent = bg
@@ -694,16 +777,12 @@ local function updatePlayerESP(player)
                     hpBg.Size = UDim2.new(0.85, 0, 0, 7)
                     hpBg.Position = UDim2.new(0.075, 0, 0.48, 0)
                     hpBg.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-                    hpBg.BackgroundTransparency = 0.3
-                    hpBg.BorderSizePixel = 1
-                    hpBg.BorderColor3 = Color3.fromRGB(40, 40, 50)
                     hpBg.Parent = bg
 
                     local hpFill = Instance.new("Frame")
                     hpFill.Name = "HPFill"
                     hpFill.Size = UDim2.new(1, 0, 1, 0)
                     hpFill.BackgroundColor3 = Color3.fromRGB(0, 190, 100)
-                    hpFill.BackgroundTransparency = 0.15
                     hpFill.BorderSizePixel = 0
                     hpFill.Parent = hpBg
 
@@ -712,7 +791,6 @@ local function updatePlayerESP(player)
                     hpTxt.Size = UDim2.new(1, 0, 1, 0)
                     hpTxt.BackgroundTransparency = 1
                     hpTxt.TextColor3 = Color3.fromRGB(240, 240, 240)
-                    hpTxt.TextStrokeTransparency = 0.5
                     hpTxt.TextSize = 8
                     hpTxt.Font = Enum.Font.GothamBold
                     hpTxt.Parent = hpBg
@@ -732,7 +810,6 @@ local function updatePlayerESP(player)
                     hl.FillColor = Color3.fromRGB(0, 180, 220)
                     hl.OutlineColor = Color3.fromRGB(180, 220, 255)
                     hl.FillTransparency = 0.88
-                    hl.OutlineTransparency = 0.65
                     hl.Parent = char
                 end
             else
@@ -744,7 +821,7 @@ local function updatePlayerESP(player)
     end
 end
 
--- RENDER STEPPED (DÖNGÜ)
+-- RENDER STEPPED (ANA DÖNGÜ)
 RunService.RenderStepped:Connect(function(delta)
     if LocalPlayer.Character then
         local char = LocalPlayer.Character
@@ -757,40 +834,55 @@ RunService.RenderStepped:Connect(function(delta)
             CoordUI.Text = string.format("X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
         end
 
-        -- CAMLOCK 1: EN YAKIN
-        if camlockActive and camlockSystemEnabled then
-            if not isTargetValid(camlockTarget) then
-                camlockTarget = getClosestTarget()
-            end
+        -- TP & HOVER (DONDURMA RE-CHECK)
+        if tpHoverActive and hrp then
+            hrp.CFrame = CFrame.new(targetTpPos)
+            hrp.Velocity = Vector3.zero
+        end
 
-            if isTargetValid(camlockTarget) then
-                local tHrp = camlockTarget.Character.HumanoidRootPart
+        -- CAMLOCK 1: EN YAKIN
+        if camlockDistActive and camlockDistEnabled then
+            if not isTargetValid(camlockDistTarget) then camlockDistTarget = getClosestTarget() end
+            if isTargetValid(camlockDistTarget) then
+                local tHrp = camlockDistTarget.Character.HumanoidRootPart
                 local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
                 local cam = workspace.CurrentCamera
-                if cam then
-                    cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos)
-                end
+                if cam then cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos) end
             end
 
         -- CAMLOCK 2: EN AZ CAN
-        elseif camlockHpActive and camlockHpSystemEnabled then
-            if not isTargetValid(camlockHpTarget) then
-                camlockHpTarget = getLowestHealthTarget()
-            end
-
+        elseif camlockHpActive and camlockHpEnabled then
+            if not isTargetValid(camlockHpTarget) then camlockHpTarget = getLowestHealthTarget() end
             if isTargetValid(camlockHpTarget) then
                 local tHrp = camlockHpTarget.Character.HumanoidRootPart
                 local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
                 local cam = workspace.CurrentCamera
-                if cam then
-                    cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos)
-                end
+                if cam then cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos) end
+            end
+
+        -- CAMLOCK 3: EN AZ CAN + TP (2 ADIM YANINA)
+        elseif camlockHpTpActive and camlockHpTpEnabled then
+            if not isTargetValid(camlockHpTpTarget) then camlockHpTpTarget = getLowestHealthTarget() end
+            if isTargetValid(camlockHpTpTarget) and hrp then
+                local tHrp = camlockHpTpTarget.Character.HumanoidRootPart
+                local predictedPos = tHrp.Position + (tHrp.AssemblyLinearVelocity * predictionAmount)
+                local cam = workspace.CurrentCamera
+                if cam then cam.CFrame = CFrame.new(cam.CFrame.Position, predictedPos) end
+                
+                -- Rakibin 3 stud (2-3 adım) arkasına/yanına sürekli ışınlanma
+                hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 3)
             end
         end
 
         -- HIZ
         if isSpeedActive and humanoid and humanoid.Health > 0 and humanoid.WalkSpeed ~= targetSpeed then
             humanoid.WalkSpeed = targetSpeed
+        end
+
+        -- ZIPLAMA GÜCÜ
+        if isJumpActive and humanoid and humanoid.Health > 0 then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = targetJumpPower
         end
 
         -- SKILL WALK
@@ -815,7 +907,6 @@ RunService.RenderStepped:Connect(function(delta)
                         tHrp.Size = Vector3.new(safeHitboxSize, safeHitboxSize, safeHitboxSize)
                         tHrp.Transparency = 0.94
                         tHrp.Color = Color3.fromRGB(0, 160, 220)
-                        tHrp.Material = Enum.Material.SmoothPlastic
                         tHrp.CanCollide = false
                     else
                         if tHrp.Size ~= Vector3.new(2, 2, 1) then
@@ -824,7 +915,6 @@ RunService.RenderStepped:Connect(function(delta)
                         end
                     end
                 end
-
                 updatePlayerESP(player)
             end
         end
